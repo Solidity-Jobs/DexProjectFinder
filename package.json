@@ -1,0 +1,23 @@
+{
+  "name": "bot0-tokenfinder",
+  "version": "1.0.0",
+  "description": "**looking for new clients for TheDexer**",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": " ",
+  "dependencies": {
+    "mongodb": "^6.1.0",
+    "node-fetch": "^3.3.2",
+    "telegraf": "^4.13.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1",
+    "nodemon": "^3.0.1"
+  }
+}
