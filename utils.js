@@ -1,6 +1,8 @@
 import fetch from "node-fetch";
 import { config } from "dotenv";
 import DbService from "./db/index.js";
+import fs from 'fs'
+import fastcsv from 'fast-csv'
 config();
 
 function sleep(ms) {
@@ -12,6 +14,15 @@ const subtractDays = (date, days) => {
   return date;
 };
 
+export const convertJsonToCsv = async(data, filePath) => {
+  const ws = fs.createWriteStream(filePath);
+  await fastcsv
+    .write(data, { headers: true })
+    .on('finish', () => {
+      console.log('CSV file has been created successfully.');
+    })
+    .pipe(ws);
+}
 const getBlockchainParams = (network) => {
   let params = {
     network: "",

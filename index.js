@@ -2,7 +2,8 @@ import { Telegraf } from 'telegraf'
 import { config } from 'dotenv'
 import { message } from 'telegraf/filters'
 import Dbservice from "./db/index.js";
-import { getPools } from './utils.js';
+import { getPools, convertJsonToCsv } from './utils.js';
+import fs from 'fs'
 config()
 
 const bot = new Telegraf(process.env.BOTFATHER_API_KEY, {
@@ -64,23 +65,39 @@ bot.action("fetch", async (ctx) => {
   ctx.sendMessage("Choose your chain", options);
 });
 
+// bot.action(/^chain:(\w+)/, async (ctx) => {
+//   const query = ctx.update.callback_query.data;
+//   const blockchain = query.split(":")[1];
+//   const tokens = await Dbservice.findSelect({ chain: blockchain }, "tokens", {
+//     _id: 0,
+//   });
+
+//   if (tokens.length >= 20) {
+//     let index = 0;
+//     let size = 15;
+//     while (tokens.length > index) {
+//       let t = tokens.splice(index, size);
+//       jsonToCsv(tokens)
+//       let x = fs.readFileSync(path.)
+//       //ctx.reply(`Tokens:${JSON.stringify(t, null, 2)}`);
+//     }
+//   } else {
+//     ctx.reply(`Tokens:${JSON.stringify(tokens, null, 2)}`);
+//   }
+// });
+
 bot.action(/^chain:(\w+)/, async (ctx) => {
   const query = ctx.update.callback_query.data;
   const blockchain = query.split(":")[1];
   const tokens = await Dbservice.findSelect({ chain: blockchain }, "tokens", {
     _id: 0,
   });
-
-  if (tokens.length >= 20) {
-    let index = 0;
-    let size = 15;
-    while (tokens.length > index) {
-      let t = tokens.splice(index, size);
-      ctx.reply(`Tokens:${JSON.stringify(t, null, 2)}`);
-    }
-  } else {
-    ctx.reply(`Tokens:${JSON.stringify(tokens, null, 2)}`);
-  }
+  const csvFilePath = `${blockchain}.csv`;
+  await convertJsonToCsv(tokens, csvFilePath);
+  await sleep(15000)
+  const document =await fs.readFileSync(csvFilePath);
+  await ctx.replyWithDocument({ source: document, filename: csvFilePath });
+  fs.unlinkSync(csvFilePath);
 });
 
 bot.action(/^query:(bsc|matic|bsc-cake)$/, async (ctx) => {
@@ -98,6 +115,10 @@ bot.on(message("text"), async (ctx) => {
   }, {})
   await getPools(date.startDate, date.endDate, chain, ctx)
 })
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 bot.launch();
 Dbservice.connect();
