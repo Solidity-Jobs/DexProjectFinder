@@ -166,9 +166,9 @@ const getProviderParams = (chain, currentProviderIndex, pool) => {
   return params;
 };
 
-const getTokenInfo = async (chain, pools) => {
-  let index = 100;
-  let providerIndex = 0
+const getTokenInfo = async (chain, pools, ctx) => {
+  let index = 200;
+  let providerIndex = 1
   const stable = [
     "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
     "0x55d398326f99059ff775485246999027b3197955",
@@ -186,6 +186,7 @@ const getTokenInfo = async (chain, pools) => {
       console.log(idx, provider.url);
       if (idx == index) {
         console.log("sleeping.......");
+        ctx.reply(`${index} query completed`)
         index += 100;
         await sleep(20000);
       }
@@ -199,7 +200,7 @@ const getTokenInfo = async (chain, pools) => {
         providerIndex == 0 ? data.data.metrics.liquidity : data.pair.liquidity.usd;
       if (metrics == null) continue;
       console.log("metrics", metrics);
-      if (metrics > 10000) {
+      if (metrics > 10000) {provider
         const pair = stable.includes(pool.token0) ? pool.token1 : pool.token0;
         const urls = await getPairSocials(pair);
         console.log("URL", urls);
@@ -254,7 +255,7 @@ export const getPools = async (startDate, endDate, chain, ctx) => {
     }
     const pools = data.data.ethereum.arguments;
     console.log("pools", pools.length, pools);
-    await getTokenInfo(blockChainParams, pools)
+    await getTokenInfo(blockChainParams, pools, ctx)
     ctx.reply(`${currenIndex} query completed`)
     //offset +=  2000
     currenIndex += 2000
