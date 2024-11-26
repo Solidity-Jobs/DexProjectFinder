@@ -1,28 +1,28 @@
 import fetch from "node-fetch";
 import { config } from "dotenv";
+import fs from "fs";
+import fastcsv from "fast-csv";
 import DbService from "./db/index.js";
-import fs from 'fs'
-import fastcsv from 'fast-csv'
+
 config();
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const subtractDays = (date, days) => {
-  date.setDate(date.getDate() - days);
-  return date;
-};
-
-export const convertJsonToCsv = async(data, filePath) => {
+export const convertJsonToCsv = async (data, filePath, ctx) => {
   const ws = fs.createWriteStream(filePath);
   await fastcsv
     .write(data, { headers: true })
-    .on('finish', () => {
-      console.log('CSV file has been created successfully.');
+    .on("finish", async () => {
+      console.log("CSV file created successfully.");
+      if (ctx) {
+        await ctx.replyWithDocument({ source: filePath });
+      }
     })
     .pipe(ws);
-}
+};
+
 const getBlockchainParams = (network) => {
   let params = {
     network: "",
@@ -31,9 +31,9 @@ const getBlockchainParams = (network) => {
   };
   switch (network) {
     case "bsc-cake":
-      params.slug = "bsc"
+      params.slug = "bsc";
       params.network = "bsc";
-      params.contractAddress = "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
+      params.contractAddress = "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73";
       break;
     case "bsc":
       params.slug = "bsc";
@@ -50,215 +50,160 @@ const getBlockchainParams = (network) => {
   }
   return params;
 };
-const getQuery = (network, params, data) => {
-  let query = ""
-  if (network == "bsc-cake") {
-    query = `
-    query Pools($address: [String!]!, $startDate:ISO8601DateTime!, $endDate:ISO8601DateTime!){
-      ethereum(network: bsc) {
+
+const getQuery = (params, offset, startDate, endDate) => {
+  return `
+    query Pools($startDate: ISO8601DateTime!, $endDate: ISO8601DateTime!, $address: [String!]!) {
+      ethereum(network: ${params.network}) {
         arguments(
-          options: {desc: ["block.height","index"], limit:2000, offset:${data}}
-          date:{between: [$startDate, $endDate]}
+          options: {desc: ["block.height"], limit: 2000, offset: ${offset}}
+          date: {between: [$startDate, $endDate]}
           smartContractAddress: {in: $address}
           smartContractEvent: {is: "PairCreated"}
         ) {
           block {
             height
-            timestamp{
-              time(format:"%Y-%m-%d %H:%M:%S")
+            timestamp {
+              time(format: "%Y-%m-%d %H:%M:%S")
             }
           }
-          index
           pair: any(of: argument_value, argument: {is: "pair"})
           token0: any(of: argument_value, argument: {is: "token0"})
-          token0Name: any(of: argument_value, argument: {is: "token0"}, as: token_name)
           token1: any(of: argument_value, argument: {is: "token1"})
-          token1Name: any(of: argument_value, argument: {is: "token1"}, as: token_name)
         }
       }
     }
-    `
-  } else {
-    //     query = `
-    //     query Pools($address: [String!], $date: ISO8601DateTime!){
-    //         ethereum(network: ${params.network}) {
-    //           arguments(
-    //             date:{since: $date}
-    //             smartContractAddress: {in: $address}
-    //             smartContractEvent: {is: "PoolCreated"}
-    //           ) {
-    //             block {
-    //               height
-    //               timestamp{
-    //                 time(format:"%Y-%m-%d %H:%M:%S")
-    //               }
-    //             }
-    //             index
-    //             pair: any(of: argument_value, argument: {is: "pool"})
-    //             token0: any(of: argument_value, argument: {is: "token0"})
-    //             token0Name: any(of: argument_value, argument: {is: "token0"}, as: token_name)
-    //             token1: any(of: argument_value, argument: {is: "token1"})
-    //             token1Name: any(of: argument_value, argument: {is: "token1"}, as: token_name)
-    //           }
-    //         }
-    //       }
-    // `;
-    query = `
-query Pools($address: [String!]!, $startDate:ISO8601DateTime!, $endDate:ISO8601DateTime!){
-    ethereum(network: ${params.network}) {
-      arguments(
-        options: {desc: ["block.height","index"], limit:2000, offset:${data}}
-        date:{between: [$startDate, $endDate]}
-        smartContractAddress: {in: $address}
-        smartContractEvent: {is: "PoolCreated"}
-      ) {
-        block {
-          height
-          timestamp{
-            time(format:"%Y-%m-%d %H:%M:%S")
-          }
-        }
-        index
-        pair: any(of: argument_value, argument: {is: "pool"})
-        token0: any(of: argument_value, argument: {is: "token0"})
-        token0Name: any(of: argument_value, argument: {is: "token0"}, as: token_name)
-        token1: any(of: argument_value, argument: {is: "token1"})
-        token1Name: any(of: argument_value, argument: {is: "token1"}, as: token_name)
-      }
-    }
-  }
-`;
-  }
-  return query
-}
-const getPairSocials = async (pair) => {
-  console.log("searching for socials.....");
-  const path = `https://pro-api.coinmarketcap.com/v1/cryptocurrency/info?address=${pair}`;
-  const resonse = await fetch(path, {
-    method: "get",
-    timeout: 3600000,
-    headers: {
-      "X-CMC_PRO_API_KEY": process.env.CMC_API_KEY,
-    },
-  });
-  const data = await resonse.json();
-  if (data.status.error_code == 400) return;
-  const key = Object.keys(data.data);
-  if (key) {
-    const value = data.data[key];
-    return value.urls.chat;
-  }
+  `;
 };
 
-const getProviderParams = (chain, currentProviderIndex, pool) => {
-  let params = {
-    url: "",
-    headers: "",
+const getPairSocials = async (pair) => {
+  try {
+    const url = `https://pro-api.coinmarketcap.com/v1/cryptocurrency/info?address=${pair}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "X-CMC_PRO_API_KEY": process.env.CMC_API_KEY },
+    });
+    const data = await response.json();
+    if (data.status.error_code === 0) {
+      const key = Object.keys(data.data)[0];
+      return data.data[key]?.urls?.chat || "N/A";
+    }
+  } catch (error) {
+    console.error(`Error fetching socials for pair ${pair}:`, error);
+  }
+  return "N/A";
+};
+
+const getProviderParams = (chain, pool) => {
+  return {
+    url: `https://api.dexscreener.com/latest/dex/pairs/${chain.slug}/${pool}`,
+    headers: {},
   };
-  if (currentProviderIndex == 0) {
-    params.url = `http://api.dextools.io/v1/pair?chain=${chain.slug}&address=${pool}`;
-    params.headers = { "x-api-key": process.env.DEXT_API_KEY };
-  }
-  if (currentProviderIndex == 1) {
-    params.url = `https://api.dexscreener.com/latest/dex/pairs/${chain.slug}/${pool}`;
-    params.headers = {};
-  }
-  return params;
 };
 
 const getTokenInfo = async (chain, pools, ctx) => {
-  let index = 200;
-  let providerIndex = 1
-  const stable = [
-    "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
-    "0x55d398326f99059ff775485246999027b3197955",
-    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
-    "0xe9e7cea3dedca5984780bafc599bd69add087d56",
-    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
-    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
-    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
-    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
-    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+  const stableCoins = [
+    "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
+    "0x55d398326f99059ff775485246999027b3197955", // USDT
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", // WBNB
+    "0xe9e7cea3dedca5984780bafc599bd69add087d56", // BUSD
+    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270", // WMATIC
+    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT on Polygon
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC on Polygon
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", // WETH on Polygon
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // DAI on Polygon
   ];
-  for (const [idx, pool] of pools.entries()) {
-    const provider = getProviderParams(chain, providerIndex, pool.pair);
-    try {
-      console.log(idx, provider.url);
-      if (idx == index) {
-        console.log("sleeping.......");
-        ctx.reply(`${index} query completed`)
-        index += 100;
-        await sleep(20000);
-      }
-      const response = await fetch(provider.url, {
-        timeout: 3600000,
-        headers: provider.headers,
-      });
-      const data = await response.json();
-      if (providerIndex == 0 && data.data == null) continue;
-      const metrics =
-        providerIndex == 0 ? data.data.metrics.liquidity : data.pair.liquidity.usd;
-      if (metrics == null) continue;
-      console.log("metrics", metrics);
-      if (metrics > 10000) {provider
-        const pair = stable.includes(pool.token0) ? pool.token1 : pool.token0;
-        const urls = await getPairSocials(pair);
-        console.log("URL", urls);
-        if (urls != undefined) {
-          await DbService.insert(
-            {
-              name: `${pool.token0Name}-${pool.token1Name}`,
-              chain: chain.network,
-              address: pair,
-              urls: urls,
-            },
-            "tokens"
-          );
-        }
-      }
-    } catch (e) {
-      if (e.code === "ECONNRESET") {
-        console.log("switch provider....");
-      }
-    }
+
+  const validTokens = [];
+  const concurrencyLimit = 50; // Number of pools processed in parallel
+  const poolChunks = [];
+
+  for (let i = 0; i < pools.length; i += concurrencyLimit) {
+    poolChunks.push(pools.slice(i, i + concurrencyLimit));
   }
-  console.log("done......")
-}
+
+  for (const chunk of poolChunks) {
+    const results = await Promise.all(
+      chunk.map(async (pool) => {
+        const provider = getProviderParams(chain, pool.pair);
+        try {
+          const response = await fetch(provider.url, { headers: provider.headers });
+          const data = await response.json();
+          if (!data.pair || !data.pair.liquidity) {
+            console.log(`No liquidity data for pool ${pool.pair}`);
+            return null;
+          }
+          const liquidity = data.pair.liquidity.usd || 0;
+          if (liquidity >= 25000) { // Updated liquidity criteria to $25,000
+            const baseToken = stableCoins.includes(pool.token0)
+              ? pool.token1
+              : pool.token0;
+            const socials = await getPairSocials(baseToken);
+            return {
+              pool: pool.pair,
+              token0: pool.token0,
+              token1: pool.token1,
+              liquidity,
+              socials,
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching data for pool ${pool.pair}:`, error);
+          return null;
+        }
+      })
+    );
+
+    const filteredResults = results.filter((result) => result !== null);
+    validTokens.push(...filteredResults);
+
+    console.log(`Processed ${validTokens.length} valid pools so far.`);
+    await sleep(2000); // Optional delay to avoid rate-limiting
+  }
+
+  if (validTokens.length > 0) {
+    const filePath = "./valid_tokens.csv";
+    await convertJsonToCsv(validTokens, filePath, ctx);
+  }
+};
+
 export const getPools = async (startDate, endDate, chain, ctx) => {
   const blockChainParams = getBlockchainParams(chain);
-  let totalTokens = 200000 // total number of tokens to filter
-  let currenIndex = 0
-  while (currenIndex < totalTokens) {
-    const query = getQuery(chain, blockChainParams, currenIndex, startDate.toString(), endDate.toString())
+  let currentIndex = 0;
+
+  while (true) {
+    const query = getQuery(blockChainParams, currentIndex, startDate, endDate);
     const variables = {
-      startDate: startDate,
-      endDate: endDate,
+      startDate,
+      endDate,
       address: blockChainParams.contractAddress,
     };
-    const response = await fetch("https://graphql.bitquery.io", {
-      method: "post",
-      headers: {
-        "X-API-KEY": process.env.BITQUERY_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-    const data = await response.json();
-    console.log("data", data, variables)
-    if (response.status !== 200) {
-      console.error("Failed to request");
-      return false;
+
+    try {
+      const response = await fetch("https://graphql.bitquery.io", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": process.env.BITQUERY_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+
+      const data = await response.json();
+      if (!data || !data.data || !data.data.ethereum.arguments) {
+        console.error("No more pools found or invalid response.");
+        break;
+      }
+
+      const pools = data.data.ethereum.arguments;
+      console.log(`Pools found: ${pools.length}`);
+      await getTokenInfo(blockChainParams, pools, ctx);
+
+      currentIndex += 2000;
+      console.log(`Current index: ${currentIndex}`);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      break;
     }
-    if (data.data.ethereum.arguments == 0) {
-      console.error("Failed to request");
-      return false;
-    }
-    const pools = data.data.ethereum.arguments;
-    console.log("pools", pools.length, pools);
-    await getTokenInfo(blockChainParams, pools, ctx)
-    ctx.reply(`${currenIndex} query completed`)
-    //offset +=  2000
-    currenIndex += 2000
-    console.log('currentIndex.......', currenIndex)
   }
-}
+};
