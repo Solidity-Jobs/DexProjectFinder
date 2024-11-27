@@ -56,7 +56,7 @@ const getQuery = (params, offset, startDate, endDate) => {
     query Pools($startDate: ISO8601DateTime!, $endDate: ISO8601DateTime!, $address: [String!]!) {
       ethereum(network: ${params.network}) {
         arguments(
-          options: {desc: ["block.height"], limit: 2000, offset: ${offset}}
+          options: {desc: ["block.height"], limit: 10000, offset: ${offset}}
           date: {between: [$startDate, $endDate]}
           smartContractAddress: {in: $address}
           smartContractEvent: {is: "PairCreated"}
@@ -108,10 +108,10 @@ const getTokenInfo = async (chain, pools, ctx) => {
     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", // WBNB
     "0xe9e7cea3dedca5984780bafc599bd69add087d56", // BUSD
     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270", // WMATIC
-    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT on Polygon
-    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC on Polygon
-    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", // WETH on Polygon
-    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // DAI on Polygon
+    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT (Polygon)
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC (Polygon)
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", // WETH (Polygon)
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"  // FDUSD
   ];
 
   const validTokens = [];
@@ -134,7 +134,7 @@ const getTokenInfo = async (chain, pools, ctx) => {
             return null;
           }
           const liquidity = data.pair.liquidity.usd || 0;
-          if (liquidity >= 25000) { // Updated liquidity criteria to $25,000
+          if (liquidity > 25000) {
             const baseToken = stableCoins.includes(pool.token0)
               ? pool.token1
               : pool.token0;
@@ -199,7 +199,7 @@ export const getPools = async (startDate, endDate, chain, ctx) => {
       console.log(`Pools found: ${pools.length}`);
       await getTokenInfo(blockChainParams, pools, ctx);
 
-      currentIndex += 2000;
+      currentIndex += 10000; // Increment offset by 10000
       console.log(`Current index: ${currentIndex}`);
     } catch (error) {
       console.error("Error fetching data:", error);
