@@ -32,10 +32,10 @@
   dependencies:
     sparse-bitfield "^3.0.3"
 
-"@telegraf/types@^6.8.1":
-  version "6.8.1"
-  resolved "https://registry.npmjs.org/@telegraf/types/-/types-6.8.1.tgz"
-  integrity sha512-JCRQuPPDCreYQaAeOwnqIlWrs8pJVvaNEUWBVNvdK3oJoTUKyBV+3TsPrIcnGqLeapptznuTk5s4udTlZPvGTA==
+"@telegraf/types@^7.1.0":
+  version "7.1.0"
+  resolved "https://registry.npmjs.org/@telegraf/types/-/types-7.1.0.tgz"
+  integrity sha512-kGevOIbpMcIlCDeorKGpwZmdH7kHbqlk/Yj6dEpJMKEQw5lk0KVQY0OLXaCswy8GqlIVLd5625OB+rAntP9xVw==
 
 "@types/node@*":
   version "20.6.0"
@@ -344,7 +344,7 @@ node-domexception@^1.0.0:
   resolved "https://registry.npmjs.org/node-domexception/-/node-domexception-1.0.0.tgz"
   integrity sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==
 
-node-fetch@^2.6.8:
+node-fetch@^2.7.0:
   version "2.7.0"
   resolved "https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz"
   integrity sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==
@@ -455,16 +455,16 @@ supports-color@^5.5.0:
   dependencies:
     has-flag "^3.0.0"
 
-telegraf@^4.13.1:
-  version "4.13.1"
-  resolved "https://registry.npmjs.org/telegraf/-/telegraf-4.13.1.tgz"
-  integrity sha512-WXITwqE3ivqDqjHFxj94xaQhHddldBZdE2g/hRJXyCMTkwZYw69q9I7La7nsDpsHLn5ADSQlGv0KAbwFkFpmlA==
+telegraf@^4.16.3:
+  version "4.16.3"
+  resolved "https://registry.npmjs.org/telegraf/-/telegraf-4.16.3.tgz"
+  integrity sha512-yjEu2NwkHlXu0OARWoNhJlIjX09dRktiMQFsM678BAH/PEPVwctzL67+tvXqLCRQQvm3SDtki2saGO9hLlz68w==
   dependencies:
-    "@telegraf/types" "^6.8.1"
+    "@telegraf/types" "^7.1.0"
     abort-controller "^3.0.0"
     debug "^4.3.4"
     mri "^1.2.0"
-    node-fetch "^2.6.8"
+    node-fetch "^2.7.0"
     p-timeout "^4.1.0"
     safe-compare "^1.1.4"
     sandwich-stream "^2.0.2"
