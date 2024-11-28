@@ -122,7 +122,11 @@ const getTokenInfo = async (chain, pools, ctx) => {
     poolChunks.push(pools.slice(i, i + concurrencyLimit));
   }
 
-  for (const chunk of poolChunks) {
+  let startTime = Date.now(); // Start timer for the first batch
+
+  for (let i = 0; i < poolChunks.length; i++) {
+    const chunk = poolChunks[i];
+    console.log(`Processing batch ${i + 1}/${poolChunks.length}...`);
     const results = await Promise.all(
       chunk.map(async (pool) => {
         const provider = getProviderParams(chain, pool.pair);
@@ -156,6 +160,17 @@ const getTokenInfo = async (chain, pools, ctx) => {
 
     const filteredResults = results.filter((result) => result !== null);
     validTokens.push(...filteredResults);
+
+    // Send estimated time after processing the first batch
+    if (i === 0 && poolChunks.length > 1) {
+      const endTime = Date.now();
+      const timeTaken = endTime - startTime; // Time for first batch
+      const estimatedTimeRemaining = ((poolChunks.length - 1) * timeTaken) / 1000; // Seconds
+
+      await ctx.reply(
+        `First batch processed. Estimated time remaining for this index: ~${Math.ceil(estimatedTimeRemaining / 60)} minutes.`
+      );
+    }
 
     console.log(`Processed ${validTokens.length} valid pools so far.`);
     await sleep(2000); // Optional delay to avoid rate-limiting
