@@ -22,6 +22,7 @@ jobs:
           echo BITQUERY_API_KEY=${{secrets.BITQUERY_API_KEY}} >> .env
           echo DB_NAME=${{secrets.DB_NAME}} >> .env
           echo DB_HOST=${{secrets.DB_HOST}} >> .env
+          echo DEXTOOLS_API_KEY=${{secrets.DEXTOOLS_API_KEY}} >> .env
         shell: bash
         
       - name: Stop all process
