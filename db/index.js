@@ -14,7 +14,6 @@ class DbService {
     try {
       if (!this.connected) {
         this.client = new MongoClient(this.host);
-        // this.connection = await this.client.connect();
         this.connected = true;
         this.client.on("open", () => {
           console.log("db opened");
@@ -30,7 +29,6 @@ class DbService {
       return this.connection;
     } catch (error) {
       throw new Error(error);
-      // console.log(error);
     }
   }
 
