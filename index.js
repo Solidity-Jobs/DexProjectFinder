@@ -20,7 +20,7 @@ const getKeyboardCommands = () => {
     inline_keyboard: [
       [
         { text: "Start query", callback_data: "query" },
-        { text: "Fetch tokens", callback_data: "fetch" },
+        // { text: "Fetch tokens", callback_data: "fetch" },
       ],
     ],
   };

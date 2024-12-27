@@ -23,15 +23,16 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
   console.log("Data to write to CSV:", JSON.stringify(data, null, 2));
 
   // Flatten the data to ensure nested fields like 'socials' are correctly processed
-  const flattenedData = data.map((item) => ({
-    pool: item.pool,
-    token0: item.token0,
-    token1: item.token1,
-    liquidity: item.liquidity,
-    telegram: item.socials.telegram || "N/A",
-    discord: item.socials.discord || "N/A",
-    twitter: item.socials.twitter || "N/A",
-  }));
+  // const flattenedData = data.map((item) => ({
+  //   pool: item.pool,
+  //   token0: item.token0,
+  //   token1: item.token1,
+  //   liquidity: item.liquidity,
+  //   telegram: item.socials.telegram || "N/A",
+  //   discord: item.socials.discord || "N/A",
+  //   twitter: item.socials.twitter || "N/A",
+  // }));
+  const flattenedData = data;
 
   // Log flattened data to check if it's in a good format
   console.log(
@@ -484,7 +485,10 @@ const getTokenInfo = async (chain, pools, ctx) => {
 // };
 
 const ADDRESS = "https://public-api.dextools.io/trial/v2";
-const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
+const TOKEN =
+  process.env.DEXTOOLS_API_KEY ||
+  process.env.DEXTOOLS_TOKEN ||
+  "O21qleSkzv5oV5SYjpfNo8aRybmQDpIE3PPShBEM";
 
 const makeRequest = async (url) => {
   console.log("make request url::", url);
@@ -497,7 +501,7 @@ const makeRequest = async (url) => {
       },
     });
     const data = await response.json();
-    console.log("token data", data.data);
+    // console.log("token data", data.data);
     if (data) return data.data;
   } catch (error) {
     throw error;
@@ -575,115 +579,129 @@ const fetchAllResults = async (url) => {
 };
 
 // Helper function to extract token addresses
-const extractTokenAddresses = (allPools, version) => {
-  const tokenSet = new Set(); // Using Set to prevent duplicate addresses
-  const poolNames = new Set(); // Using Set to prevent duplicate addresses
+const extractTokenAddresses = async (allPools, version, chain) => {
+  const stableCoins = [
+    "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
+    "0x55d398326f99059ff775485246999027b3197955", // USDT
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", // WBNB
+    "0xe9e7cea3dedca5984780bafc599bd69add087d56", // BUSD
+    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270", // WMATIC
+    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT (Polygon)
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC (Polygon)
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", // WETH (Polygon)
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // FDUSD
+  ];
+  const poolData = [];
   console.log("all Pools length==>", allPools.length);
-  allPools.forEach((pool) => {
-    const factoryAddress = pool.exchange?.factory;
+  for (const pool of allPools) {
     const exchangeName = pool.exchange?.name;
-    poolNames.add(exchangeName);
     const versonName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
     if (exchangeName === versonName) {
-      const mainTokenAddress = pool.mainToken?.address;
-      const sideTokenAddress = pool.sideToken?.address;
+      // console.log(pool);
+      const poolAddress = pool.address;
+      const liquidity = await getLiquidity(chain, poolAddress);
+      console.log("liquidity==>", liquidity);
+      await sleep(500);
+      if (liquidity > 10) {
+        const mainTokenAddress = pool.mainToken?.address;
+        const sideTokenAddress = pool.sideToken?.address;
 
-      tokenSet.add(mainTokenAddress);
-      tokenSet.add(sideTokenAddress);
-    }
-  });
+        const baseToken = stableCoins.includes(mainTokenAddress)
+          ? sideTokenAddress
+          : mainTokenAddress;
+        const tgInfo = await getSocialInfo(chain, baseToken);
+        console.log("tg info ==>", tgInfo);
 
-  console.log("Pool Names  ==>", poolNames);
-  // return Array.from(tokenSet); // Convert Set back to Array
-  console.log("tokenSet==>", tokenSet);
-  return [...tokenSet]; // Convert Set back to Array
-};
-
-// Helper function to fetch social info for tokens
-const fetchTokenSocialInfos = async (tokenArray, chain) => {
-  const socialInfos = [];
-
-  for (const tokenAddress of tokenArray) {
-    const url = `${ADDRESS}/token/${chain}/${tokenAddress}`;
-
-    try {
-      const data = await makeRequest(url);
-      console.log("token info data ==>", data);
-      if (data) {
-        socialInfos.push({
-          name: data.name,
-          symbol: data.symbol,
-          address: data.address,
-          socialInfo: data.socialInfo,
+        poolData.push({
+          Name: poolAddress,
+          TgInfo: tgInfo,
+          Notes: "",
+          CA: baseToken,
         });
       }
-    } catch (err) {
-      console.error(
-        `Error fetching social info for token ${tokenAddress}:`,
-        err
-      );
     }
-    await sleep(1000);
+    await sleep(500);
   }
-
-  return socialInfos;
+  return poolData;
 };
+
+const getLiquidity = async (chain, poolAddress) => {
+  const url = `${ADDRESS}/pool/${chain}/${poolAddress}/liquidity`;
+  const response = await makeRequest(url);
+  // console.log("liquidity response ==>", response);
+  if (response) return response.liquidity;
+};
+
+const getSocialInfo = async (chain, tokenAddress) => {
+  const url = `${ADDRESS}/token/${chain}/${tokenAddress}`;
+  const data = await makeRequest(url);
+  if (data) return data.socialInfo?.telegram || "N/A";
+};
+
+// // Helper function to fetch social info for tokens
+// const fetchTokenSocialInfos = async (tokenArray, chain) => {
+//   const socialInfos = [];
+
+//   for (const tokenAddress of tokenArray) {
+//     const url = `${ADDRESS}/token/${chain}/${tokenAddress}`;
+
+//     try {
+//       const data = await makeRequest(url);
+//       if (data) {
+//         socialInfos.push({
+//           name: data.name,
+//           symbol: data.symbol,
+//           address: data.address,
+//           telegram: data.socialInfo?.telegram || "N/A",
+//           discord: data.socialInfo?.discord || "N/A",
+//           twitter: data.socialInfo?.twitter || "N/A",
+//         });
+//       }
+//     } catch (err) {
+//       console.error(
+//         `Error fetching social info for token ${tokenAddress}:`,
+//         err
+//       );
+//     }
+//     await sleep(1000);
+//   }
+
+//   return socialInfos;
+// };
 
 export const getPools = async (startDate, endDate, chain, version, ctx) => {
   const blockChainParams = getBlockchainParams(chain, version);
-  const { network, contractAddress } = blockChainParams;
+  const { network, contractAddress, slug } = blockChainParams;
   // console.log(version);
   // console.log("Blockchain Params:", blockChainParams);
 
   try {
-    const allPools = await fetchPoolsBetweenDates(network, startDate, endDate);
+    const allPools = await fetchPoolsBetweenDates(slug, startDate, endDate);
     // console.log("allPools data==>", allPools);
-    const tokenArray = extractTokenAddresses(allPools, version);
-    // console.log("tokenArray data==>", tokenArray);
+    const poolData = await extractTokenAddresses(allPools, version, chain);
 
-    const socialInfos = await fetchTokenSocialInfos(tokenArray, chain);
-    // console.log("socialInfos data==>", socialInfos);
-    saveJsonToFile(socialInfos);
-    if (socialInfos.length > 0) {
+    if (poolData.length > 0) {
+      convertJsonToCsv(poolData, "valid_tokens.csv", ctx);
       // console.log("social info==>", socialInfos);
-      await ctx.reply(JSON.stringify(socialInfos));
+      // await ctx.reply(JSON.stringify(socialInfos));
     } else {
       await ctx.reply("No More Valid Tokens to Process");
       console.log("No valid tokens found to process.");
     }
+    await sleep(1000);
+    await ctx.reply("Welcome to TokenFinder!", {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "BSC", callback_data: "chain:bsc" },
+            { text: "Polygon", callback_data: "chain:polygon" },
+            { text: "Base", callback_data: "chain:base" },
+          ],
+        ],
+      },
+    });
   } catch (error) {
     console.error("Error during token processing:", error);
     await ctx.reply("An error occurred while processing tokens.");
   }
-};
-
-const saveJsonToFile = (jsonData) => {
-  const now = new Date();
-
-  // Format the date as YYYY-MM-DD_HH-mm-ss
-  const formattedDate =
-    [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, "0"), // Months are 0-based
-      String(now.getDate()).padStart(2, "0"),
-    ].join("-") +
-    "_" +
-    [
-      String(now.getHours()).padStart(2, "0"),
-      String(now.getMinutes()).padStart(2, "0"),
-      String(now.getSeconds()).padStart(2, "0"),
-    ].join("-");
-
-  const filename = `Data_${formattedDate}.json`;
-  // Convert the JSON object to a string
-  const jsonString = JSON.stringify(jsonData, null, 2); // Pretty print with indentation
-
-  // Write the JSON string to a file
-  fs.writeFile(filename, jsonString, (err) => {
-    if (err) {
-      console.error("Error writing to file", err);
-      return;
-    }
-    console.log("JSON data saved to", filename);
-  });
 };
