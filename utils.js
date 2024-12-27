@@ -485,10 +485,7 @@ const getTokenInfo = async (chain, pools, ctx) => {
 // };
 
 const ADDRESS = "https://public-api.dextools.io/trial/v2";
-const TOKEN =
-  process.env.DEXTOOLS_API_KEY ||
-  process.env.DEXTOOLS_TOKEN ||
-  "O21qleSkzv5oV5SYjpfNo8aRybmQDpIE3PPShBEM";
+const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN || "";
 
 const makeRequest = async (url) => {
   console.log("make request url::", url);
