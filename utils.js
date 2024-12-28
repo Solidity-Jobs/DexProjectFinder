@@ -6,6 +6,8 @@ import { promisify } from "util";
 import DbService from "./db/index.js"; // Ensure DbService is imported correctly
 
 config();
+const ADDRESS = "https://public-api.dextools.io/trial/v2";
+const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -386,9 +388,6 @@ const getTokenInfo = async (chain, pools, ctx) => {
     console.log("No valid tokens found to process.");
   }
 };
-
-const ADDRESS = "https://public-api.dextools.io/trial/v2";
-const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
 
 const makeRequest = async (url) => {
   console.log("make request url::", url);
