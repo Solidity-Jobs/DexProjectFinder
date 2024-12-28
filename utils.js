@@ -143,35 +143,6 @@ const getBlockchainParams = (network, version) => {
   return params;
 };
 
-// Get the GraphQL query to fetch pool data
-const getQuery = (params, offset, startDate, endDate, version) => {
-  const eventName = version === "v3" ? "PoolCreated" : "PairCreated"; // Change event name for v3
-  const entityName = version === "v3" ? "pool" : "pair"; // Use different entity name for v2 and v3
-
-  return `
-    query Pools($startDate: ISO8601DateTime!, $endDate: ISO8601DateTime!, $address: [String!]!) {
-      ethereum(network: ${params.network}) {
-        arguments(
-          options: {desc: ["block.height"], limit: 10000, offset: ${offset}}
-          date: {between: [$startDate, $endDate]}
-          smartContractAddress: {in: $address}
-          smartContractEvent: {is: "${eventName}"}
-        ) {
-          block {
-            height
-            timestamp {
-              time(format: "%Y-%m-%d %H:%M:%S")
-            }
-          }
-          ${entityName}: any(of: argument_value, argument: {is: "${entityName}"})
-          token0: any(of: argument_value, argument: {is: "token0"})
-          token1: any(of: argument_value, argument: {is: "token1"})
-        }
-      }
-    }
-  `;
-};
-
 // Get provider parameters for a given chain and pool
 const getProviderParams = (chain, pool) => {
   return {
@@ -416,76 +387,8 @@ const getTokenInfo = async (chain, pools, ctx) => {
   }
 };
 
-// Fetch pools from the blockchain based on the given parameters
-// export const getPools = async (startDate, endDate, chain, version, ctx) => {
-//   const blockChainParams = getBlockchainParams(chain, version);
-//   let currentIndex = 0;
-//   let poolsFound = true; // Add a flag to track if pools are found
-
-//   while (poolsFound) {  // Loop continues only if pools are found
-//     const query = getQuery(blockChainParams, currentIndex, startDate, endDate, version);
-//     const variables = {
-//       startDate,
-//       endDate,
-//       address: blockChainParams.contractAddress,
-//     };
-
-//     try {
-//       const response = await fetch("https://graphql.bitquery.io", {
-//         method: "POST",
-//         headers: {
-//           "X-API-KEY": process.env.BITQUERY_API_KEY,
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({ query, variables }),
-//       });
-
-//       // Log the status and response text for debugging
-//       console.log(`Response status: ${response.status}`);
-//       const responseText = await response.text();  // Read the raw response body as text
-//       console.log("Response body:", responseText);
-
-//       // If the status code is not 200, handle the error (e.g., rate-limited or server error)
-//       if (!response.ok) {
-//         console.error(`Error: Received status ${response.status}`);
-//         console.error("Response body:", responseText);  // Log raw HTML response (likely error page)
-//         break;  // Exit the loop or retry as needed
-//       }
-
-//       // Try parsing the response as JSON
-//       const data = JSON.parse(responseText);  // Manually parse the raw response text
-//       console.log("API Response:", JSON.stringify(data, null, 2));
-
-//       // Check if pools exist in the response
-//       if (!data || !data.data || !data.data.ethereum.arguments || data.data.ethereum.arguments.length === 0) {
-//         console.log("No more pools found or invalid response.");
-//         poolsFound = false; // No pools left to fetch, exit the loop
-//         break;  // Break the loop
-//       }
-
-//       const pools = data.data.ethereum.arguments;
-//       console.log(`Pools found: ${pools.length}`);
-//       await getTokenInfo(blockChainParams, pools, ctx);
-
-//       currentIndex += 10000; // Increment offset by 10000
-//       console.log(`Current index: ${currentIndex}`);
-//     } catch (error) {
-//       console.error("Error fetching data:", error);
-//       break;  // Break the loop or retry depending on the error
-//     }
-//   }
-
-//   // After the loop ends, send the message to the user
-//   try {
-//     await ctx.reply("No More Valid Tokens to Process");
-//     console.log("Bot notified user: No More Valid Tokens to Process");
-//   } catch (error) {
-//     console.error("Error sending final message:", error);
-//   }
-// };
-
 const ADDRESS = "https://public-api.dextools.io/trial/v2";
-const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN || "";
+const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
 
 const makeRequest = async (url) => {
   console.log("make request url::", url);
@@ -635,42 +538,10 @@ const getSocialInfo = async (chain, tokenAddress) => {
   if (data) return data.socialInfo?.telegram || "N/A";
 };
 
-// // Helper function to fetch social info for tokens
-// const fetchTokenSocialInfos = async (tokenArray, chain) => {
-//   const socialInfos = [];
-
-//   for (const tokenAddress of tokenArray) {
-//     const url = `${ADDRESS}/token/${chain}/${tokenAddress}`;
-
-//     try {
-//       const data = await makeRequest(url);
-//       if (data) {
-//         socialInfos.push({
-//           name: data.name,
-//           symbol: data.symbol,
-//           address: data.address,
-//           telegram: data.socialInfo?.telegram || "N/A",
-//           discord: data.socialInfo?.discord || "N/A",
-//           twitter: data.socialInfo?.twitter || "N/A",
-//         });
-//       }
-//     } catch (err) {
-//       console.error(
-//         `Error fetching social info for token ${tokenAddress}:`,
-//         err
-//       );
-//     }
-//     await sleep(1000);
-//   }
-
-//   return socialInfos;
-// };
-
 export const getPools = async (startDate, endDate, chain, version, ctx) => {
   const blockChainParams = getBlockchainParams(chain, version);
   const { network, contractAddress, slug } = blockChainParams;
   // console.log(version);
-  // console.log("Blockchain Params:", blockChainParams);
 
   try {
     const allPools = await fetchPoolsBetweenDates(slug, startDate, endDate);
@@ -680,7 +551,6 @@ export const getPools = async (startDate, endDate, chain, version, ctx) => {
     if (poolData.length > 0) {
       convertJsonToCsv(poolData, "valid_tokens.csv", ctx);
       // console.log("social info==>", socialInfos);
-      // await ctx.reply(JSON.stringify(socialInfos));
     } else {
       await ctx.reply("No More Valid Tokens to Process");
       console.log("No valid tokens found to process.");
