@@ -6,12 +6,15 @@ class DbService {
   static connected = false;
   static host = process.env.DB_HOST;
   static dbName = process.env.DB_NAME;
+  static client = null;
+  static connection = null;
 
   static async connect() {
+    console.log(this.host, this.dbName);
     try {
       if (!this.connected) {
         this.client = new MongoClient(this.host);
-
+        this.connected = true;
         this.client.on("open", () => {
           console.log("db opened");
           this.connected = true;

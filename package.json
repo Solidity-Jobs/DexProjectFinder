@@ -12,6 +12,8 @@
   "author": "",
   "license": " ",
   "dependencies": {
+    "axios": "^1.7.9",
+    "axios-logger": "^2.8.1",
     "fast-csv": "^5.0.1",
     "mongodb": "^6.1.0",
     "node-fetch": "^3.3.2",

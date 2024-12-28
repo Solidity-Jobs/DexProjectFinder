@@ -1,5 +1,6 @@
 node_modules
 .env
+.env_copy
 .DS_Store
 valid_tokens.csv
 package-lock.json
