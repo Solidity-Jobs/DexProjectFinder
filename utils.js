@@ -582,15 +582,6 @@ const getDSinfo = async (tokenAddress) => {
   }
 };
 
-const getCGInfo = async (tokenAddress) => {
-  const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddresses}`;
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {},
-  });
-  const data = await response.json();
-};
-
 export const getPools = async (startDate, endDate, chain, version, ctx) => {
   const blockChainParams = getBlockchainParams(chain, version);
   const { network, contractAddress, slug } = blockChainParams;
