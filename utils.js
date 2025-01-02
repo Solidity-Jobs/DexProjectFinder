@@ -563,16 +563,18 @@ const getDSinfo = async (tokenAddress) => {
   const data = await response.json();
   if (data) {
     const pairArray = data.pairs;
-    for (pair of pairArray) {
-      const socials = pair.info.social;
-      if (socials.length > 0) {
-        for (const social of socials) {
-          if (social.platform === "telegram") {
-            return social.handle; // Return the Telegram URL
+    if (pairArray.length > 0) {
+      for (pair of pairArray) {
+        const socials = pair.info.social;
+        if (socials.length > 0) {
+          for (const social of socials) {
+            if (social.platform === "telegram") {
+              return social.handle; // Return the Telegram URL
+            }
           }
+        } else {
+          console.log("no social info from dexscreener.");
         }
-      } else {
-        console.log("no social info from dexscreener.");
       }
     }
   } else {
