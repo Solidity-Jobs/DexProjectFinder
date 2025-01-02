@@ -7,7 +7,7 @@ import DbService from "./db/index.js"; // Ensure DbService is imported correctly
 
 config();
 const ADDRESS = "https://public-api.dextools.io/trial/v2";
-const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
+const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN || "";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -219,32 +219,32 @@ const fetchFromDEXTools = async (address, network) => {
 };
 
 // Combine social data from CMC and DEXTools
-const getPairSocials = async (pair) => {
-  try {
-    const [cmcSocials, dextoolsSocials] = await Promise.all([
-      fetchFromCMC(pair),
-      fetchFromDEXTools(pair),
-    ]);
+// const getPairSocials = async (pair) => {
+//   try {
+//     const [cmcSocials, dextoolsSocials] = await Promise.all([
+//       fetchFromCMC(pair),
+//       fetchFromDEXTools(pair),
+//     ]);
 
-    return {
-      telegram:
-        dextoolsSocials.telegram !== "N/A"
-          ? dextoolsSocials.telegram
-          : cmcSocials.telegram,
-      discord:
-        dextoolsSocials.discord !== "N/A"
-          ? dextoolsSocials.discord
-          : cmcSocials.discord,
-      twitter:
-        dextoolsSocials.twitter !== "N/A"
-          ? dextoolsSocials.twitter
-          : cmcSocials.twitter,
-    };
-  } catch (error) {
-    console.error(`Error fetching socials for pair ${pair}:`, error);
-    return { telegram: "N/A", discord: "N/A", twitter: "N/A" };
-  }
-};
+//     return {
+//       telegram:
+//         dextoolsSocials.telegram !== "N/A"
+//           ? dextoolsSocials.telegram
+//           : cmcSocials.telegram,
+//       discord:
+//         dextoolsSocials.discord !== "N/A"
+//           ? dextoolsSocials.discord
+//           : cmcSocials.discord,
+//       twitter:
+//         dextoolsSocials.twitter !== "N/A"
+//           ? dextoolsSocials.twitter
+//           : cmcSocials.twitter,
+//     };
+//   } catch (error) {
+//     console.error(`Error fetching socials for pair ${pair}:`, error);
+//     return { telegram: "N/A", discord: "N/A", twitter: "N/A" };
+//   }
+// };
 
 // Save pool data to the database
 const savePoolDataToDb = async (validTokens) => {
@@ -272,135 +272,144 @@ const savePoolDataToDb = async (validTokens) => {
 };
 
 // Process token info and filter valid tokens
-const getTokenInfo = async (chain, pools, ctx) => {
-  const stableCoins = [
-    "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
-    "0x55d398326f99059ff775485246999027b3197955", // USDT
-    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", // WBNB
-    "0xe9e7cea3dedca5984780bafc599bd69add087d56", // BUSD
-    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270", // WMATIC
-    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT (Polygon)
-    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC (Polygon)
-    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", // WETH (Polygon)
-    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // FDUSD
-  ];
+// const getTokenInfo = async (chain, pools, ctx) => {
+//   const stableCoins = [
+//     "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
+//     "0x55d398326f99059ff775485246999027b3197955", // USDT
+//     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", // WBNB
+//     "0xe9e7cea3dedca5984780bafc599bd69add087d56", // BUSD
+//     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270", // WMATIC
+//     "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT (Polygon)
+//     "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC (Polygon)
+//     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", // WETH (Polygon)
+//     "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // FDUSD
+//   ];
 
-  const validTokens = [];
-  const concurrencyLimit = 50;
-  const poolChunks = [];
+//   const validTokens = [];
+//   const concurrencyLimit = 50;
+//   const poolChunks = [];
 
-  // Split pools into chunks for concurrent processing
-  for (let i = 0; i < pools.length; i += concurrencyLimit) {
-    poolChunks.push(pools.slice(i, i + concurrencyLimit));
-  }
+//   // Split pools into chunks for concurrent processing
+//   for (let i = 0; i < pools.length; i += concurrencyLimit) {
+//     poolChunks.push(pools.slice(i, i + concurrencyLimit));
+//   }
 
-  let startTime = Date.now();
+//   let startTime = Date.now();
 
-  // Process pools in chunks
-  for (let i = 0; i < poolChunks.length; i++) {
-    const chunk = poolChunks[i];
-    console.log(`Processing batch ${i + 1}/${poolChunks.length}...`);
+//   // Process pools in chunks
+//   for (let i = 0; i < poolChunks.length; i++) {
+//     const chunk = poolChunks[i];
+//     console.log(`Processing batch ${i + 1}/${poolChunks.length}...`);
 
-    const results = await Promise.all(
-      chunk.map(async (pool) => {
-        const provider = getProviderParams(chain, pool.pair);
-        try {
-          const response = await fetch(provider.url, {
-            headers: provider.headers,
-          });
-          const data = await response.json();
+//     const results = await Promise.all(
+//       chunk.map(async (pool) => {
+//         const provider = getProviderParams(chain, pool.pair);
+//         try {
+//           const response = await fetch(provider.url, {
+//             headers: provider.headers,
+//           });
+//           const data = await response.json();
 
-          if (!data.pair || !data.pair.liquidity) {
-            console.log(`No liquidity data for pool ${pool.pair}`);
-            return null;
-          }
+//           if (!data.pair || !data.pair.liquidity) {
+//             console.log(`No liquidity data for pool ${pool.pair}`);
+//             return null;
+//           }
 
-          const liquidity = data.pair.liquidity.usd || 0;
+//           const liquidity = data.pair.liquidity.usd || 0;
 
-          // Log liquidity data for debugging
-          console.log(`Liquidity for pool ${pool.pair}: ${liquidity}`);
+//           // Log liquidity data for debugging
+//           console.log(`Liquidity for pool ${pool.pair}: ${liquidity}`);
 
-          if (liquidity > 10) {
-            // Identify the base token (the native token, not a stable coin)
-            const baseToken = stableCoins.includes(pool.token0)
-              ? pool.token1
-              : pool.token0;
+//           if (liquidity > 10) {
+//             // Identify the base token (the native token, not a stable coin)
+//             const baseToken = stableCoins.includes(pool.token0)
+//               ? pool.token1
+//               : pool.token0;
 
-            // Fetch social data only for the base/native token from the correct network
-            const socials = await fetchFromDEXTools(baseToken, chain.slug); // Ensure correct network (BSC, Polygon, Base)
+//             // Fetch social data only for the base/native token from the correct network
+//             const socials = await fetchFromDEXTools(baseToken, chain.slug); // Ensure correct network (BSC, Polygon, Base)
 
-            // Log the social data for debugging
-            console.log(`Social data for pool ${pool.pair}:`, socials);
+//             // Log the social data for debugging
+//             console.log(`Social data for pool ${pool.pair}:`, socials);
 
-            // Return only if valid social data exists (non-"N/A" fields)
-            if (socials.telegram !== "N/A") {
-              return {
-                pool: pool.pair,
-                token0: pool.token0,
-                token1: pool.token1,
-                liquidity,
-                socials,
-              };
-            } else {
-              console.log(`Missing Telegram social data for pool ${pool.pair}`);
-              return null;
-            }
-          } else {
-            console.log(`Pool ${pool.pair} skipped due to liquidity < 10 USD.`);
-            return null;
-          }
-        } catch (error) {
-          console.error(`Error fetching data for pool ${pool.pair}:`, error);
-          return null;
-        }
-      })
-    );
+//             // Return only if valid social data exists (non-"N/A" fields)
+//             if (socials.telegram !== "N/A") {
+//               return {
+//                 pool: pool.pair,
+//                 token0: pool.token0,
+//                 token1: pool.token1,
+//                 liquidity,
+//                 socials,
+//               };
+//             } else {
+//               console.log(`Missing Telegram social data for pool ${pool.pair}`);
+//               return null;
+//             }
+//           } else {
+//             console.log(`Pool ${pool.pair} skipped due to liquidity < 10 USD.`);
+//             return null;
+//           }
+//         } catch (error) {
+//           console.error(`Error fetching data for pool ${pool.pair}:`, error);
+//           return null;
+//         }
+//       })
+//     );
 
-    // Filter out null results (failed pools)
-    const filteredResults = results.filter((result) => result !== null);
-    validTokens.push(...filteredResults);
+//     // Filter out null results (failed pools)
+//     const filteredResults = results.filter((result) => result !== null);
+//     validTokens.push(...filteredResults);
 
-    // Estimate remaining time based on processing speed
-    if (i === 0 && poolChunks.length > 1) {
-      const endTime = Date.now();
-      const timeTaken = endTime - startTime;
-      const estimatedTimeRemaining =
-        ((poolChunks.length - 1) * timeTaken) / 1000;
+//     // Estimate remaining time based on processing speed
+//     if (i === 0 && poolChunks.length > 1) {
+//       const endTime = Date.now();
+//       const timeTaken = endTime - startTime;
+//       const estimatedTimeRemaining =
+//         ((poolChunks.length - 1) * timeTaken) / 1000;
 
-      await ctx.reply(
-        `First batch processed. Estimated time remaining for this index: ~${Math.ceil(
-          estimatedTimeRemaining / 60
-        )} minutes.`
-      );
-    }
+//       await ctx.reply(
+//         `First batch processed. Estimated time remaining for this index: ~${Math.ceil(
+//           estimatedTimeRemaining / 60
+//         )} minutes.`
+//       );
+//     }
 
-    console.log(`Processed ${validTokens.length} valid pools so far.`);
-    await sleep(2000); // Delay to avoid rate-limiting
-  }
+//     console.log(`Processed ${validTokens.length} valid pools so far.`);
+//     await sleep(2000); // Delay to avoid rate-limiting
+//   }
 
-  // If valid tokens are found, proceed with CSV creation
-  if (validTokens.length > 0) {
-    console.log(`Total valid pools found: ${validTokens.length}`);
-    const filePath = "./valid_tokens.csv";
-    await convertJsonToCsv(validTokens, filePath, ctx);
-    await savePoolDataToDb(validTokens); // Save to the database after processing
-  } else {
-    console.log("No valid tokens found to process.");
-  }
-};
+//   // If valid tokens are found, proceed with CSV creation
+//   if (validTokens.length > 0) {
+//     console.log(`Total valid pools found: ${validTokens.length}`);
+//     const filePath = "./valid_tokens.csv";
+//     await convertJsonToCsv(validTokens, filePath, ctx);
+//     await savePoolDataToDb(validTokens); // Save to the database after processing
+//   } else {
+//     console.log("No valid tokens found to process.");
+//   }
+// };
 
 const makeRequest = async (url) => {
   console.log("make request url::", url);
+  const retries = 3;
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-API-KEY": TOKEN,
-        "Content-Type": "application/json",
-      },
-    });
-    const data = await response.json();
-    // console.log("token data", data.data);
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-API-KEY": TOKEN,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      // console.log("token data", data.data);
+      if (data) {
+        break;
+      } else {
+        console.log("request data is failed..");
+        await sleep(600);
+      }
+    }
     if (data) return data.data;
   } catch (error) {
     throw error;
@@ -441,30 +450,34 @@ const fetchAllResults = async (url) => {
   let page = 0;
   let totalPages;
   // console.log("fetchResult==>", url);
+  const retries = 3;
 
   do {
     try {
-      const response = await fetch(`${url}&page=${page}`, {
-        method: "GET",
-        headers: {
-          "X-API-KEY": TOKEN,
-          "Content-Type": "application/json",
-        },
-      });
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        const response = await fetch(`${url}&page=${page}`, {
+          method: "GET",
+          headers: {
+            "X-API-KEY": TOKEN,
+            "Content-Type": "application/json",
+          },
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (data.statusCode === 200) {
-        // Extract results and total pages
-        // console.log("data==>", data);
+        if (data.statusCode === 200) {
+          // Extract results and total pages
+          // console.log("data==>", data);
 
-        const { totalPages: tp, results: pageResults } = data.data;
-        totalPages = tp;
-        // console.log(tp);
-
-        results.push(...pageResults);
-      } else {
-        console.error(`Received unexpected status code ${data.statusCode}`);
+          const { totalPages: tp, results: pageResults } = data.data;
+          totalPages = tp;
+          // console.log(tp);
+          results.push(...pageResults);
+          break;
+        } else {
+          console.error(`Received unexpected status code ${data.statusCode}`);
+          await sleep(600);
+        }
       }
     } catch (error) {
       console.error(`Error fetching page ${page}:`, error.message);
@@ -510,13 +523,15 @@ const extractTokenAddresses = async (allPools, version, chain) => {
           : mainTokenAddress;
         const tgInfo = await getSocialInfo(chain, baseToken);
         console.log("tg info ==>", tgInfo);
-
-        poolData.push({
-          Name: poolAddress,
-          TgInfo: tgInfo,
-          Notes: "",
-          CA: baseToken,
-        });
+        if (tgInfo != "N/A" || tgInfo != undefined) {
+          console.log("tgInfo==>", tgInfo);
+          poolData.push({
+            Name: poolAddress,
+            TgInfo: tgInfo,
+            Notes: "",
+            CA: baseToken,
+          });
+        }
       }
     }
     await sleep(500);
@@ -535,6 +550,25 @@ const getSocialInfo = async (chain, tokenAddress) => {
   const url = `${ADDRESS}/token/${chain}/${tokenAddress}`;
   const data = await makeRequest(url);
   if (data) return data.socialInfo?.telegram || "N/A";
+};
+
+const getDSinfo = async (tokenAddress) => {
+  const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddresses}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {},
+  });
+  const data = await response.json();
+  if (data) return;
+};
+
+const getCGInfo = async (tokenAddress) => {
+  const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddresses}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {},
+  });
+  const data = await response.json();
 };
 
 export const getPools = async (startDate, endDate, chain, version, ctx) => {

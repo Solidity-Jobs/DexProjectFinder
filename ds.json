@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "text",
+  "pairs": [
+    {
+      "chainId": "text",
+      "dexId": "text",
+      "url": "https://example.com",
+      "pairAddress": "text",
+      "labels": ["text"],
+      "baseToken": {
+        "address": "text",
+        "name": "text",
+        "symbol": "text"
+      },
+      "quoteToken": {
+        "address": "text",
+        "name": "text",
+        "symbol": "text"
+      },
+      "priceNative": "text",
+      "priceUsd": "text",
+      "liquidity": {
+        "usd": 0,
+        "base": 0,
+        "quote": 0
+      },
+      "fdv": 0,
+      "marketCap": 0,
+      "pairCreatedAt": 0,
+      "info": {
+        "imageUrl": "https://example.com",
+        "websites": [
+          {
+            "url": "https://example.com"
+          }
+        ],
+        "socials": [
+          {
+            "platform": "text",
+            "handle": "text"
+          }
+        ]
+      },
+      "boosts": {
+        "active": 0
+      }
+    }
+  ]
+}
