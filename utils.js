@@ -164,20 +164,22 @@ const fetchFromCMC = async (pair) => {
     const data = await response.json();
     if (data.status.error_code === 0) {
       const key = Object.keys(data.data)[0];
-      return {
-        telegram: data.data[key]?.urls?.chat || "N/A",
-        discord: data.data[key]?.urls?.discord || "N/A",
-        twitter: data.data[key]?.urls?.twitter || "N/A",
-      };
+      return data.data[key]?.urls?.chat || "N/A";
+      // return {
+      //   telegram: data.data[key]?.urls?.chat || "N/A",
+      //   discord: data.data[key]?.urls?.discord || "N/A",
+      //   twitter: data.data[key]?.urls?.twitter || "N/A",
+      // };
     }
   } catch (error) {
     console.error(`Error fetching socials from CMC for pair ${pair}:`, error);
   }
-  return {
-    telegram: "N/A",
-    discord: "N/A",
-    twitter: "N/A",
-  };
+  // return {
+  //   telegram: "N/A",
+  //   discord: "N/A",
+  //   twitter: "N/A",
+  // };
+  return "N/A";
 };
 
 // Fetch social data from DexTools
@@ -524,7 +526,12 @@ const extractTokenAddresses = async (allPools, version, chain) => {
         const tgInfo = await getSocialInfo(chain, baseToken);
         console.log("tg info ==>", tgInfo);
         const tokenInfo = await getDSinfo(baseToken);
-        console.log("Token info from Dexscreener", tokenInfo);
+        const tgFromDs =
+          tokenInfo.length > 0 ? (tgFromDs = tokenInfo.join(", ")) : "";
+
+        console.log("Token info from Dexscreener", tgFromDs);
+        const tgUrlFromCMC = fetchFromCMC(poolAddress);
+        console.log("tgUrlFromCMC==>", tgUrlFromCMC);
         if (tgInfo != "N/A" || tgInfo != undefined) {
           console.log("tgInfo==>", tgInfo);
           poolData.push({
@@ -532,6 +539,8 @@ const extractTokenAddresses = async (allPools, version, chain) => {
             TgInfo: tgInfo,
             Notes: "",
             CA: baseToken,
+            TgfromDS: tgFromDs,
+            TgfromCMC: tgUrlFromCMC,
           });
         }
       }
@@ -555,6 +564,8 @@ const getSocialInfo = async (chain, tokenAddress) => {
 };
 
 const getDSinfo = async (tokenAddress) => {
+  // get data from dexscreener
+  let tgUrls = [];
   const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
   const response = await fetch(url, {
     method: "GET",
@@ -569,7 +580,7 @@ const getDSinfo = async (tokenAddress) => {
         if (socials.length > 0) {
           for (const social of socials) {
             if (social.platform === "telegram") {
-              return social.handle; // Return the Telegram URL
+              if (social.handle) tgUrls.push(social.handle); // Return the Telegram URL
             }
           }
         } else {
@@ -580,6 +591,7 @@ const getDSinfo = async (tokenAddress) => {
   } else {
     console.log("no data from dexscreener.");
   }
+  return tgUrls;
 };
 
 export const getPools = async (startDate, endDate, chain, version, ctx) => {
