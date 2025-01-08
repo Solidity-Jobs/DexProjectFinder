@@ -310,9 +310,13 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
     count++;
     if (count % 100 == 0) {
       i++;
-      if (i == 3) {
+      if (i == 5) {
         await ctx.reply(`${count} / ${allPools.length}`);
         i = 0;
+      } else {
+        if (count === allPools.length) {
+          await ctx.reply(`${count} / ${allPools.length}`);
+        }
       }
     }
     const exchangeName = pool.exchange?.name;
