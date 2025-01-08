@@ -214,7 +214,7 @@ const makeRequest = async (url) => {
   }
 };
 
-const fetchPoolsBetweenDates = async (chain, startDate, endDate) => {
+const fetchPoolsBetweenDates = async (chain, startDate, endDate, ctx) => {
   let currentDate = new Date(startDate);
   endDate = new Date(endDate);
 
@@ -239,6 +239,7 @@ const fetchPoolsBetweenDates = async (chain, startDate, endDate) => {
     }
     await sleep(1000);
   }
+  ctx.reply(`0/${totalResults.length}`);
   return totalResults; // Return combined results
 };
 
@@ -288,7 +289,7 @@ const fetchAllResults = async (url) => {
 };
 
 // Helper function to extract token addresses
-const extractTokenAddresses = async (allPools, version, chain) => {
+const extractTokenAddresses = async (allPools, version, chain, ctx) => {
   const stableCoins = [
     "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
     "0x55d398326f99059ff775485246999027b3197955", // USDT
@@ -301,8 +302,13 @@ const extractTokenAddresses = async (allPools, version, chain) => {
     "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // FDUSD
   ];
   const poolData = [];
+  let count = 0;
   console.log("all Pools length==>", allPools.length);
   for (const pool of allPools) {
+    count++;
+    if (count % 100 == 0) {
+      await ctx.reply(`${count} / ${allPools.length}`);
+    }
     const exchangeName = pool.exchange?.name;
     const versonName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
     if (exchangeName === versonName) {
@@ -318,8 +324,8 @@ const extractTokenAddresses = async (allPools, version, chain) => {
           ? sideTokenAddress
           : mainTokenAddress;
         await sleep(500);
-        const tgInfo = await getSocialInfo(chain, baseToken);
-        console.log("tg info ==>", tgInfo);
+        const socialInfo = await getSocialInfo(chain, baseToken);
+        console.log("tg info ==>", socialInfo);
 
         const tokenInfo = await getDSinfo(baseToken);
         const tgFromDs =
@@ -329,10 +335,15 @@ const extractTokenAddresses = async (allPools, version, chain) => {
         const tgUrlFromCMC = await fetchFromCMC(poolAddress, chain);
         console.log("tgUrlFromCMC==>", tgUrlFromCMC);
 
-        if (tgInfo != "N/A" || tgFromDs != "") {
+        if (
+          socialInfo.telegram != "N/A" ||
+          socialInfo.email != "N/A" ||
+          tgFromDs != ""
+        ) {
           poolData.push({
             Name: poolAddress,
-            TgInfo: tgInfo,
+            TgInfo: socialInfo.telegram,
+            email: socialInfo.email,
             Notes: "",
             CA: baseToken,
             TgfromDS: tgFromDs,
@@ -359,19 +370,21 @@ const getSocialInfo = async (chain, tokenAddress) => {
     const data = await makeRequest(url);
 
     if (data && data.socialInfo) {
+      // console.log(data.socialInfo);
       const telegramUrl = data.socialInfo.telegram || "N/A";
-      console.log("Telegram info retrieved:", telegramUrl);
-      return telegramUrl;
+      const email = data.socialInfo.email || "N/A";
+      console.log("Telegram info retrieved:", telegramUrl, email);
+      return { telegram: telegramUrl, email: email };
     } else {
       console.warn("No social info found in the response:", data);
-      return "N/A";
+      return { telegram: "N/A", email: "N/A" };
     }
   } catch (error) {
     console.error(
       `Error fetching social info for token ${tokenAddress} on chain ${chain}:`,
       error
     );
-    return "N/A";
+    return { telegram: "N/A", email: "N/A" };
   }
 };
 
@@ -432,8 +445,14 @@ export const getPools = async (startDate, endDate, chain, version, ctx) => {
   console.log(version, slug);
 
   try {
-    const allPools = await fetchPoolsBetweenDates(slug, startDate, endDate);
-    const poolData = await extractTokenAddresses(allPools, version, chain);
+    await ctx.reply("Calculating.....");
+    const allPools = await fetchPoolsBetweenDates(
+      slug,
+      startDate,
+      endDate,
+      ctx
+    );
+    const poolData = await extractTokenAddresses(allPools, version, chain, ctx);
     console.log(poolData.length);
 
     if (poolData.length > 0) {
