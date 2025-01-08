@@ -1,10 +1,11 @@
 import { config } from "dotenv";
-import { MongoClient } from "mongodb";
+import { MongoClient, ServerApiVersion } from "mongodb";
 config();
-
+const uri =
+  "mongodb+srv://alejandropty:psw123456@cluster0.4fpc3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0&tls=true&tlsAllowInvalidCertificates=true";
 class DbService {
   static connected = false;
-  static host = process.env.DB_HOST;
+  static host = uri;
   static dbName = process.env.DB_NAME;
   static client = null;
   static connection = null;
@@ -13,22 +14,24 @@ class DbService {
     console.log(this.host, this.dbName);
     try {
       if (!this.connected) {
-        this.client = new MongoClient(this.host);
-        this.connected = true;
-        this.client.on("open", () => {
-          console.log("db opened");
-          this.connected = true;
-        });
-        this.client.on("topologyClosed", () => {
-          console.log("db closed");
-          this.connected = false;
+        this.client = new MongoClient(this.host, {
+          serverApi: {
+            version: ServerApiVersion.v1,
+            strict: true,
+            deprecationErrors: true,
+          },
         });
 
         this.connection = await this.client.connect();
+        await this.connection.db("dexfinder").command({ ping: 1 });
+        this.connected = true;
+        console.log(
+          "Pinged your deployment. You successfully connected to MongoDB!"
+        );
       }
       return this.connection;
     } catch (error) {
-      throw new Error(error);
+      console.log("DB connect error ==>", error);
     }
   }
 
