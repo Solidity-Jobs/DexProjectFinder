@@ -442,18 +442,6 @@ export const getPools = async (startDate, endDate, chain, version, ctx) => {
       await ctx.reply("No More Valid Tokens to Process");
       console.log("No valid tokens found to process.");
     }
-    await sleep(1000);
-    await ctx.reply("Welcome to TokenFinder!", {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "BSC", callback_data: "chain:bsc" },
-            { text: "Polygon", callback_data: "chain:polygon" },
-            { text: "Base", callback_data: "chain:base" },
-          ],
-        ],
-      },
-    });
   } catch (error) {
     console.error("Error during token processing:", error);
     await ctx.reply("An error occurred while processing tokens.");
