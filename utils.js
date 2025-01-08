@@ -23,9 +23,10 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
   }
 
   // Log data before attempting to write to CSV
-  console.log("Data to write to CSV:", JSON.stringify(data, null, 2));
+  // console.log("Data to write to CSV:", JSON.stringify(data, null, 2));
 
   const flattenedData = data;
+  // await savePoolDataToDb(data);
 
   // Ensure directory exists and the file can be written
   try {
@@ -303,11 +304,16 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
   ];
   const poolData = [];
   let count = 0;
+  let i = 0;
   console.log("all Pools length==>", allPools.length);
   for (const pool of allPools) {
     count++;
     if (count % 100 == 0) {
-      await ctx.reply(`${count} / ${allPools.length}`);
+      i++;
+      if (i == 3) {
+        await ctx.reply(`${count} / ${allPools.length}`);
+        i = 0;
+      }
     }
     const exchangeName = pool.exchange?.name;
     const versonName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
@@ -341,9 +347,12 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
           tgFromDs != ""
         ) {
           poolData.push({
-            Name: poolAddress,
+            ChainName: chain,
+            version: versonName,
+            PoolAddress: poolAddress,
+            Liquidity: liquidity,
             TgInfo: socialInfo.telegram,
-            email: socialInfo.email,
+            Email: socialInfo.email,
             Notes: "",
             CA: baseToken,
             TgfromDS: tgFromDs,
@@ -456,6 +465,7 @@ export const getPools = async (startDate, endDate, chain, version, ctx) => {
     console.log(poolData.length);
 
     if (poolData.length > 0) {
+      await ctx.reply(`The result count is ${poolData.length}`);
       convertJsonToCsv(poolData, "valid_tokens.csv", ctx);
     } else {
       await ctx.reply("No More Valid Tokens to Process");
