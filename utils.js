@@ -10,6 +10,7 @@ config();
 const ADDRESS = process.env.DEXTOOLS_URL;
 const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
 const CMC_API_KEY = process.env.CMC_API_KEY;
+const liqBorder = process.env.LIQUIDITY;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -329,7 +330,7 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
       // const reserves = liqAndReserves.reserves;
       console.log("liquidity==>", liquidity);
 
-      if (liquidity > 5) {
+      if (liquidity >= liqBorder) {
         // console.log(pool);
         const mainTokenAddress = pool.mainToken?.address;
         const sideTokenAddress = pool.sideToken?.address;
@@ -339,6 +340,7 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
         //   reserves.mainToken * mainTokenPrice +
         //   reserves.sideToken * sideTokenPrice;
         // console.log("TVL==>", Math.round(tvl));
+        const liq = Math.round(liquidity);
         const baseToken = stableCoins.includes(mainTokenAddress)
           ? sideTokenAddress
           : mainTokenAddress;
@@ -366,7 +368,7 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
             TokenName: socialInfo.name,
             PoolAddress: poolAddress,
             TokenAddress: baseToken,
-            Liquidity: liquidity,
+            Liquidity: liq,
             TgInfo: socialInfo.telegram,
             Email: socialInfo.email,
             Discord: socialInfo.discord,
@@ -412,7 +414,7 @@ const getSocialInfo = async (chain, tokenAddress) => {
       const telegramUrl = data.socialInfo.telegram || "N/A";
       const email = data.socialInfo.email || "N/A";
       const discord = data.socialInfo.discord || "N/A";
-      console.log("Telegram info retrieved:", telegramUrl, email);
+      // console.log("Telegram info retrieved:", telegramUrl, email);
       return {
         name: name,
         telegram: telegramUrl,
