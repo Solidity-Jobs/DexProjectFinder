@@ -6,7 +6,7 @@ import { promisify } from "util";
 import DbService from "./db/index.js"; // Ensure DbService is imported correctly
 
 config();
-const ADDRESS = "https://public-api.dextools.io/trial/v2";
+const ADDRESS = proces.env.DEXTOOLS_URL;
 const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
 const CMC_API_KEY = process.env.CMC_API_KEY;
 
@@ -22,10 +22,8 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
     return;
   }
 
-  // Log data before attempting to write to CSV
-  // console.log("Data to write to CSV:", JSON.stringify(data, null, 2));
-
   const flattenedData = data;
+  // Save data to online mongodb
   await savePoolDataToDb(data);
 
   // Ensure directory exists and the file can be written
