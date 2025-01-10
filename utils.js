@@ -4,9 +4,10 @@ import fs from "fs";
 import fastcsv from "fast-csv";
 import { promisify } from "util";
 import DbService from "./db/index.js"; // Ensure DbService is imported correctly
+import { reverse } from "dns";
 
 config();
-const ADDRESS = proces.env.DEXTOOLS_URL;
+const ADDRESS = process.env.DEXTOOLS_URL;
 const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
 const CMC_API_KEY = process.env.CMC_API_KEY;
 
@@ -323,14 +324,21 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
     const versionName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
     if (exchangeName === versionName) {
       const poolAddress = pool.address;
-      const liquidity = await getLiquidity(chain, poolAddress);
+      const liqAndReserves = await getLiquidity(chain, poolAddress);
+      const liquidity = liqAndReserves.liquidity;
+      // const reserves = liqAndReserves.reserves;
       console.log("liquidity==>", liquidity);
 
       if (liquidity > 5) {
         // console.log(pool);
         const mainTokenAddress = pool.mainToken?.address;
         const sideTokenAddress = pool.sideToken?.address;
-
+        // const mainTokenPrice = await getTokenPrice(chain, mainTokenAddress);
+        // const sideTokenPrice = await getTokenPrice(chain, sideTokenAddress);
+        // const tvl =
+        //   reserves.mainToken * mainTokenPrice +
+        //   reserves.sideToken * sideTokenPrice;
+        // console.log("TVL==>", Math.round(tvl));
         const baseToken = stableCoins.includes(mainTokenAddress)
           ? sideTokenAddress
           : mainTokenAddress;
@@ -378,7 +386,17 @@ const getLiquidity = async (chain, poolAddress) => {
   const url = `${ADDRESS}/pool/${chain}/${poolAddress}/liquidity`;
   const response = await makeRequest(url);
   // console.log("liquidity response ==>", response);
-  if (response) return response.liquidity;
+  const liquidity = response?.liquidity ?? 0;
+  const reserves = response?.reserves ?? { mainToken: 0, sideToken: 0 };
+
+  return { reserves, liquidity };
+};
+
+const getTokenPrice = async (chain, tokenaddress) => {
+  const url = `${ADDRESS}/token/${chain}/${tokenaddress}/price`;
+  const response = await makeRequest(url);
+  console.log("liquidity response ==>", response);
+  return response?.price ? response.price : 0;
 };
 
 const getSocialInfo = async (chain, tokenAddress) => {
