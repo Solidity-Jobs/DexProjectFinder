@@ -26,7 +26,7 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
   // console.log("Data to write to CSV:", JSON.stringify(data, null, 2));
 
   const flattenedData = data;
-  // await savePoolDataToDb(data);
+  await savePoolDataToDb(data);
 
   // Ensure directory exists and the file can be written
   try {
@@ -169,11 +169,12 @@ const savePoolDataToDb = async (validTokens) => {
     const filteredTokens = validTokens.filter((token) => {
       return (
         token &&
-        token.pool &&
-        token.token0 &&
-        token.token1 &&
-        token.liquidity &&
-        token.socials
+        token.ChainName &&
+        token.Version &&
+        token.PoolAddress &&
+        token.TokenAddress &&
+        token.TokenAddress &&
+        token.PoolDates
       );
     });
 
@@ -319,14 +320,16 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
         }
       }
     }
+    const creationTime = pool.creationTime || "";
     const exchangeName = pool.exchange?.name;
-    const versonName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
-    if (exchangeName === versonName) {
+    const versionName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
+    if (exchangeName === versionName) {
       const poolAddress = pool.address;
       const liquidity = await getLiquidity(chain, poolAddress);
       console.log("liquidity==>", liquidity);
 
       if (liquidity > 5) {
+        // console.log(pool);
         const mainTokenAddress = pool.mainToken?.address;
         const sideTokenAddress = pool.sideToken?.address;
 
@@ -346,21 +349,25 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
         console.log("tgUrlFromCMC==>", tgUrlFromCMC);
 
         if (
-          socialInfo.telegram != "N/A" ||
-          socialInfo.email != "N/A" ||
-          tgFromDs != ""
+          (socialInfo.telegram != "N/A" ||
+            socialInfo.email != "N/A" ||
+            socialInfo.discord != "N/A") &&
+          socialInfo.name != ""
         ) {
           poolData.push({
-            ChainName: chain,
-            version: versonName,
+            ChainName: chain.toUpperCase(),
+            Version: version,
+            TokenName: socialInfo.name,
             PoolAddress: poolAddress,
+            TokenAddress: baseToken,
             Liquidity: liquidity,
             TgInfo: socialInfo.telegram,
             Email: socialInfo.email,
+            Discord: socialInfo.discord,
+            PoolDates: creationTime,
             Notes: "",
-            CA: baseToken,
-            TgfromDS: tgFromDs,
-            TgfromCMC: tgUrlFromCMC,
+            // TgfromDS: tgFromDs,
+            // TgfromCMC: tgUrlFromCMC,
           });
         }
       }
@@ -381,23 +388,31 @@ const getSocialInfo = async (chain, tokenAddress) => {
 
   try {
     const data = await makeRequest(url);
+    // console.log(data);
 
     if (data && data.socialInfo) {
       // console.log(data.socialInfo);
+      const name = data.name || "";
       const telegramUrl = data.socialInfo.telegram || "N/A";
       const email = data.socialInfo.email || "N/A";
+      const discord = data.socialInfo.discord || "N/A";
       console.log("Telegram info retrieved:", telegramUrl, email);
-      return { telegram: telegramUrl, email: email };
+      return {
+        name: name,
+        telegram: telegramUrl,
+        email: email,
+        discord: discord,
+      };
     } else {
       console.warn("No social info found in the response:", data);
-      return { telegram: "N/A", email: "N/A" };
+      return { name: "", telegram: "N/A", email: "N/A", discord: "N/A" };
     }
   } catch (error) {
     console.error(
       `Error fetching social info for token ${tokenAddress} on chain ${chain}:`,
       error
     );
-    return { telegram: "N/A", email: "N/A" };
+    return { name: "", telegram: "N/A", email: "N/A", discord: "N/A" };
   }
 };
 
