@@ -27,7 +27,7 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
 
   const flattenedData = data;
   // Save data to online mongodb
-  // await savePoolDataToDb(data);
+  await savePoolDataToDb(data);
 
   // Ensure directory exists and the file can be written
   try {
@@ -184,7 +184,7 @@ const savePoolDataToDb = async (validTokens) => {
 
 const makeRequest = async (url) => {
   console.log("make request url::", url);
-  const retries = 3;
+  const retries = 5;
   try {
     for (let attempt = 1; attempt <= retries; attempt++) {
       const response = await fetch(url, {
@@ -200,7 +200,7 @@ const makeRequest = async (url) => {
         return data.data;
       } else {
         console.log("request data is failed..");
-        await sleep(600);
+        await sleep(700);
       }
     }
     // if (data) return data.data;
@@ -220,11 +220,17 @@ const fetchPoolsBetweenDates = async (chain, startDate, endDate, ctx) => {
     const from = currentDate.toISOString();
     const to = new Date(currentDate);
     to.setUTCDate(currentDate.getUTCDate() + 1); // Move to the next day
-    const endpointUrl = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${from}&to=${to.toISOString()}&pageSize=50`;
-
+    const noon = new Date(currentDate); // Create a new Date object
+    noon.setHours(currentDate.getHours() + 12);
+    console.log(from, noon, to);
     try {
-      const results = await fetchAllResults(endpointUrl);
-      totalResults.push(...results); // Combine results from all pages
+      const endpointUrl = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${from}&to=${noon.toISOString()}&pageSize=50`;
+      const firstResults = await fetchAllResults(endpointUrl);
+      totalResults.push(...firstResults); // Combine first results from all pages
+      const endpointUrl2 = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${noon.toISOString()}&to=${to.toISOString()}&pageSize=50`;
+      // console.log("new url=>", endpointUrl);
+      const results = await fetchAllResults(endpointUrl2);
+      totalResults.push(...results); // Combine second results from all pages
       currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to the next day
     } catch (error) {
       console.error(
@@ -243,13 +249,14 @@ const fetchAllResults = async (url) => {
   let results = [];
   let page = 0;
   let totalPages;
-  // console.log("fetchResult==>", url);
-  const retries = 3;
+  const retries = 5;
 
   do {
     try {
       for (let attempt = 1; attempt <= retries; attempt++) {
-        const response = await fetch(`${url}&page=${page}`, {
+        const uri = `${url}&page=${page}`;
+        console.log("fetchResult==>", uri);
+        const response = await fetch(uri, {
           method: "GET",
           headers: {
             "X-API-KEY": TOKEN,
@@ -269,7 +276,7 @@ const fetchAllResults = async (url) => {
           break;
         } else {
           console.error(`Received unexpected status code ${data.statusCode}`);
-          await sleep(600);
+          await sleep(700);
         }
       }
     } catch (error) {
