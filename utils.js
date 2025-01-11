@@ -8,8 +8,9 @@ import { reverse } from "dns";
 
 config();
 const ADDRESS = process.env.DEXTOOLS_URL;
-const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
-const CMC_API_KEY = process.env.CMC_API_KEY;
+const TOKEN = process.env.DEXTOOLS_TOKEN;
+const CMC_URL = process.env.CMC_URL;
+const CMC_KEY = process.env.CMC_API_KEY;
 const liqBorder = process.env.LIQUIDITY;
 
 function sleep(ms) {
@@ -26,7 +27,7 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
 
   const flattenedData = data;
   // Save data to online mongodb
-  await savePoolDataToDb(data);
+  // await savePoolDataToDb(data);
 
   // Ensure directory exists and the file can be written
   try {
@@ -131,37 +132,29 @@ const getBlockchainParams = (network, version) => {
   return params;
 };
 
-const fetchFromCMC = async (pair, symbol) => {
-  console.log("Triggered fetchFromCMC function for pair:", pair);
-
-  // Validate input
-  if (typeof pair !== "string" || !pair.trim()) {
-    console.log("Invalid pair provided. Must be a non-empty string.");
-  }
-
-  const url = `https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?symbol=${symbol}address=${pair}`;
-
+const fetchFromCMC = async (tokenAddress) => {
   try {
+    const url = `${CMC_URL}?address=${tokenAddress}`;
     const response = await fetch(url, {
       method: "GET",
-      headers: { "X-CMC_PRO_API_KEY": CMC_API_KEY },
+      headers: { "X-CMC_PRO_API_KEY": CMC_KEY },
     });
-
     const data = await response.json();
-    console.log("CoinMarketCap data received:", data);
-
-    // Check for successful data retrieval
-    // if (data.status.error_code === 0 && data.data) {
-    //   const key = Object.keys(data.data)[0];
-    //   return data.data[key]?.urls?.chat ?? "N/A"; // Using nullish coalescing
-    // } else {
-    //   console.warn("No valid data found in response.");
-    // }
+    // console.log("CMC-->", JSON.stringify(data));
+    if (data.status.error_code === 0) {
+      const key = Object.keys(data.data)[0];
+      return {
+        telegram: data.data[key]?.urls?.chat || "N/A",
+        discord: data.data[key]?.urls?.discord || "N/A",
+      };
+    }
   } catch (error) {
     console.error(`Error fetching socials from CMC for pair ${pair}:`, error);
   }
-
-  return "N/A"; // Return default value on failure or no data
+  return {
+    telegram: "N/A",
+    discord: "N/A",
+  };
 };
 
 const savePoolDataToDb = async (validTokens) => {
@@ -345,16 +338,41 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
           ? sideTokenAddress
           : mainTokenAddress;
         await sleep(500);
-        const socialInfo = await getSocialInfo(chain, baseToken);
+        let socialInfo = await getSocialInfo(chain, baseToken);
         console.log("tg info ==>", socialInfo);
+        if (
+          socialInfo.telegram === "N/A" &&
+          socialInfo.discord === "N/A" &&
+          socialInfo.email === "N/A"
+        ) {
+          // const tokenInfo = await getDSinfo(chain, poolAddress, baseToken);
+          // console.log("tokenInfo==>", tokenInfo);
+          // const tgFromDs =
+          //   tokenInfo.length > 0 ? (tgFromDs = tokenInfo.join(", ")) : "";
+          // console.log("Token info from Dexscreener=>", tgFromDs);
+          try {
+            const tgUrlFromCMC = await fetchFromCMC(
+              poolAddress,
+              chain,
+              baseToken
+            );
+            let telegram = tgUrlFromCMC.telegram;
+            if (Array.isArray(telegram) && telegram.length > 0) {
+              telegram = telegram.join(",");
+            }
+            socialInfo.telegram = telegram;
+            let discord = tgUrlFromCMC.discord;
+            if (Array.isArray(discord) && discord.length > 0) {
+              discord = discord.join(",");
+            }
+            socialInfo.discord = discord;
 
-        const tokenInfo = await getDSinfo(baseToken);
-        const tgFromDs =
-          tokenInfo.length > 0 ? (tgFromDs = tokenInfo.join(", ")) : "";
-        console.log("Token info from Dexscreener=>", tgFromDs);
-
-        const tgUrlFromCMC = await fetchFromCMC(poolAddress, chain);
-        console.log("tgUrlFromCMC==>", tgUrlFromCMC);
+            console.log("tgUrlFromCMC==>", tgUrlFromCMC);
+            await sleep(700);
+          } catch (error) {
+            console.log("error in cmc finding:", error);
+          }
+        }
 
         if (
           (socialInfo.telegram != "N/A" ||
@@ -434,51 +452,45 @@ const getSocialInfo = async (chain, tokenAddress) => {
   }
 };
 
-const getDSinfo = async (tokenAddress) => {
-  console.log("Fetching data from Dexscreener...");
+const getDSinfo = async (chain, pool, tokenAddress) => {
+  console.log("Fetching data from Dexscreener...", chain, pool, tokenAddress);
 
-  // Validate tokenAddress input
-  if (typeof tokenAddress !== "string" || tokenAddress.trim() === "") {
-    console.log("Invalid token address provided.");
-    return [];
-  }
-
-  const url = `https://api.dexscreener.com/latest/dex/pairs/{chainId}/{pairId}`;
+  const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
 
   try {
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: {},
     });
 
     const data = await response.json();
-
+    console.log("dexscreener=>", data);
     // Check if data and pairs exist
-    if (!data || !data.pairs || data.pairs.length === 0) {
-      console.log("No pairs found in the response.");
-      return [];
-    }
+    // if (!data || !data.pairs || data.pairs.length === 0) {
+    //   console.log("No pairs found in the response.");
+    //   return [];
+    // }
 
-    const tgUrls = [];
+    // const tgUrls = [];
 
-    // Process the pairs for Telegram URLs
-    for (const pair of data.pairs) {
-      const socials = pair.info?.social || [];
+    // // Process the pairs for Telegram URLs
+    // for (const pair of data.pairs) {
+    //   const socials = pair.info?.social || [];
 
-      // Find any social with platform 'telegram'
-      for (const social of socials) {
-        if (social.platform === "telegram" && social.handle) {
-          tgUrls.push(social.handle);
-          console.log(`Found Telegram URL: ${social.handle}`);
-        }
-      }
-    }
+    //   // Find any social with platform 'telegram'
+    //   for (const social of socials) {
+    //     if (social.platform === "telegram" && social.handle) {
+    //       tgUrls.push(social.handle);
+    //       console.log(`Found Telegram URL: ${social.handle}`);
+    //     }
+    //   }
+    // }
 
-    if (tgUrls.length === 0) {
-      console.log("No Telegram social info found.");
-    }
+    // if (tgUrls.length === 0) {
+    //   console.log("No Telegram social info found.");
+    // }
 
-    return tgUrls;
+    // return tgUrls;
   } catch (error) {
     console.error("An error occurred while fetching DS info:", error.message);
     return []; // Return an empty array on error
