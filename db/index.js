@@ -50,32 +50,13 @@ class DbService {
   static async insertAll(data, collection) {
     await this.connect();
 
-    // return this.connection
-    //   .db(this.dbName)
-    //   .collection(collection)
-    //   .insertMany(data)
-    //   .then((result) => {
-    //     return result;
-    //   });
-    const db = this.connection.db(this.dbName);
-    const col = db.collection(collection);
-
-    const keyFields = ["ChainName", "TokenName", "PoolAddress", "TokenAddress"];
-
-    for (const item of data) {
-      const filter = {};
-      keyFields.forEach((field) => {
-        filter[field] = item[field];
+    return this.connection
+      .db(this.dbName)
+      .collection(collection)
+      .insertMany(data)
+      .then((result) => {
+        return result;
       });
-
-      try {
-        await col.findOneAndUpdate(filter, { $set: item }, { upsert: true });
-      } catch (err) {
-        console.error("Error updating document:", err);
-      }
-    }
-
-    console.log("Data saved/updated successfully");
   }
 
   static async deleteAll(condition, collection) {

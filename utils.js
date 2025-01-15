@@ -2,19 +2,16 @@ import fetch from "node-fetch";
 import { config } from "dotenv";
 import fs from "fs";
 import fastcsv from "fast-csv";
-// import { promisify } from "util";
+import { promisify } from "util";
 import DbService from "./db/index.js"; // Ensure DbService is imported correctly
-// import { reverse } from "dns";
 
 config();
-const ADDRESS = process.env.DEXTOOLS_URL;
-const TOKEN = process.env.DEXTOOLS_TOKEN;
-const CMC_URL = process.env.CMC_URL;
-const CMC_KEY = process.env.CMC_API_KEY;
-const liqBorder = process.env.LIQUIDITY;
+const ADDRESS = "https://public-api.dextools.io/trial/v2";
+const TOKEN = process.env.DEXTOOLS_API_KEY || process.env.DEXTOOLS_TOKEN;
+const CMC_API_KEY = process.env.CMC_API_KEY;
 
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms * 2));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Convert JSON data to CSV and send it as a Telegram document
@@ -25,9 +22,11 @@ export const convertJsonToCsv = async (data, filePath, ctx) => {
     return;
   }
 
+  // Log data before attempting to write to CSV
+  // console.log("Data to write to CSV:", JSON.stringify(data, null, 2));
+
   const flattenedData = data;
-  // Save data to online mongodb
-  await savePoolDataToDb(data);
+  // await savePoolDataToDb(data);
 
   // Ensure directory exists and the file can be written
   try {
@@ -132,29 +131,37 @@ const getBlockchainParams = (network, version) => {
   return params;
 };
 
-const fetchFromCMC = async (tokenAddress) => {
+const fetchFromCMC = async (pair, symbol) => {
+  console.log("Triggered fetchFromCMC function for pair:", pair);
+
+  // Validate input
+  if (typeof pair !== "string" || !pair.trim()) {
+    console.log("Invalid pair provided. Must be a non-empty string.");
+  }
+
+  const url = `https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?symbol=${symbol}address=${pair}`;
+
   try {
-    const url = `${CMC_URL}?address=${tokenAddress}`;
     const response = await fetch(url, {
       method: "GET",
-      headers: { "X-CMC_PRO_API_KEY": CMC_KEY },
+      headers: { "X-CMC_PRO_API_KEY": CMC_API_KEY },
     });
+
     const data = await response.json();
-    // console.log("CMC-->",data);
-    if (data.status.error_code === 0) {
-      const key = Object.keys(data.data)[0];
-      return {
-        telegram: data.data[key]?.urls?.chat || "N/A",
-        discord: data.data[key]?.urls?.discord || "N/A",
-      };
-    }
+    console.log("CoinMarketCap data received:", data);
+
+    // Check for successful data retrieval
+    // if (data.status.error_code === 0 && data.data) {
+    //   const key = Object.keys(data.data)[0];
+    //   return data.data[key]?.urls?.chat ?? "N/A"; // Using nullish coalescing
+    // } else {
+    //   console.warn("No valid data found in response.");
+    // }
   } catch (error) {
     console.error(`Error fetching socials from CMC for pair ${pair}:`, error);
   }
-  return {
-    telegram: "N/A",
-    discord: "N/A",
-  };
+
+  return "N/A"; // Return default value on failure or no data
 };
 
 const savePoolDataToDb = async (validTokens) => {
@@ -162,12 +169,11 @@ const savePoolDataToDb = async (validTokens) => {
     const filteredTokens = validTokens.filter((token) => {
       return (
         token &&
-        token.ChainName &&
-        token.Version &&
-        token.PoolAddress &&
-        token.TokenAddress &&
-        token.TokenAddress &&
-        token.PoolDates
+        token.pool &&
+        token.token0 &&
+        token.token1 &&
+        token.liquidity &&
+        token.socials
       );
     });
 
@@ -183,8 +189,8 @@ const savePoolDataToDb = async (validTokens) => {
 };
 
 const makeRequest = async (url) => {
-  // console.log("make request url::", url);
-  const retries = 4;
+  console.log("make request url::", url);
+  const retries = 3;
   try {
     for (let attempt = 1; attempt <= retries; attempt++) {
       const response = await fetch(url, {
@@ -200,7 +206,7 @@ const makeRequest = async (url) => {
         return data.data;
       } else {
         console.log("request data is failed..");
-        await sleep(1000);
+        await sleep(600);
       }
     }
     // if (data) return data.data;
@@ -220,27 +226,19 @@ const fetchPoolsBetweenDates = async (chain, startDate, endDate, ctx) => {
     const from = currentDate.toISOString();
     const to = new Date(currentDate);
     to.setUTCDate(currentDate.getUTCDate() + 1); // Move to the next day
-    const noon = new Date(currentDate); // Create a new Date object
-    noon.setHours(currentDate.getHours() + 12);
-    console.log(from, noon, to);
+    const endpointUrl = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${from}&to=${to.toISOString()}&pageSize=50`;
+
     try {
-      const endpointUrl = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${from}&to=${noon.toISOString()}&pageSize=50`;
-      const firstResults = await fetchAllResults(endpointUrl);
-      await sleep(2000);
-      totalResults.push(...firstResults); // Combine first results from all pages
-      const endpointUrl2 = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${noon.toISOString()}&to=${to.toISOString()}&pageSize=50`;
-      // console.log("new url=>", endpointUrl);
-      const results = await fetchAllResults(endpointUrl2);
-      totalResults.push(...results); // Combine second results from all pages
+      const results = await fetchAllResults(endpointUrl);
+      totalResults.push(...results); // Combine results from all pages
       currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to the next day
-      await sleep(1000);
     } catch (error) {
       console.error(
         `Error fetching data from ${from} to ${to.toISOString()}:`,
         error.message
       );
     }
-    await sleep(3000);
+    await sleep(1000);
   }
   ctx.reply(`0/${totalResults.length}`);
   return totalResults; // Return combined results
@@ -251,14 +249,13 @@ const fetchAllResults = async (url) => {
   let results = [];
   let page = 0;
   let totalPages;
-  const retries = 4;
+  // console.log("fetchResult==>", url);
+  const retries = 3;
 
   do {
     try {
       for (let attempt = 1; attempt <= retries; attempt++) {
-        const uri = `${url}&page=${page}`;
-        console.log("fetchResult==>", uri);
-        const response = await fetch(uri, {
+        const response = await fetch(`${url}&page=${page}`, {
           method: "GET",
           headers: {
             "X-API-KEY": TOKEN,
@@ -273,12 +270,12 @@ const fetchAllResults = async (url) => {
 
           const { totalPages: tp, results: pageResults } = data.data;
           totalPages = tp;
-          console.log("total number of pages==>", tp);
+          // console.log(tp);
           results.push(...pageResults);
           break;
         } else {
           console.error(`Received unexpected status code ${data.statusCode}`);
-          await sleep(3000);
+          await sleep(600);
         }
       }
     } catch (error) {
@@ -286,7 +283,7 @@ const fetchAllResults = async (url) => {
     }
 
     page++;
-    await sleep(3000);
+    await sleep(1000);
   } while (page <= totalPages);
 
   return results;
@@ -322,88 +319,48 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
         }
       }
     }
-    const creationTime = pool.creationTime || "";
     const exchangeName = pool.exchange?.name;
-    const versionName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
-    if (exchangeName === versionName) {
-      await sleep(500);
+    const versonName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
+    if (exchangeName === versonName) {
       const poolAddress = pool.address;
-      const liqAndReserves = await getLiquidity(chain, poolAddress);
-      const liquidity = liqAndReserves.liquidity;
-      // const reserves = liqAndReserves.reserves;
+      const liquidity = await getLiquidity(chain, poolAddress);
       console.log("liquidity==>", liquidity);
 
-      if (liquidity >= liqBorder) {
-        // console.log(pool);
+      if (liquidity > 5) {
         const mainTokenAddress = pool.mainToken?.address;
         const sideTokenAddress = pool.sideToken?.address;
-        // const mainTokenPrice = await getTokenPrice(chain, mainTokenAddress);
-        // const sideTokenPrice = await getTokenPrice(chain, sideTokenAddress);
-        // const tvl =
-        //   reserves.mainToken * mainTokenPrice +
-        //   reserves.sideToken * sideTokenPrice;
-        // console.log("TVL==>", Math.round(tvl));
-        const liq = Math.round(liquidity);
+
         const baseToken = stableCoins.includes(mainTokenAddress)
           ? sideTokenAddress
           : mainTokenAddress;
-        await sleep(3000);
-        let socialInfo = await getSocialInfo(chain, baseToken);
+        await sleep(500);
+        const socialInfo = await getSocialInfo(chain, baseToken);
         console.log("tg info ==>", socialInfo);
-        if (
-          socialInfo.telegram === "N/A" &&
-          socialInfo.discord === "N/A" &&
-          socialInfo.email === "N/A"
-        ) {
-          // const tokenInfo = await getDSinfo(chain, poolAddress, baseToken);
-          // console.log("tokenInfo==>", tokenInfo);
-          // const tgFromDs =
-          //   tokenInfo.length > 0 ? (tgFromDs = tokenInfo.join(", ")) : "";
-          // console.log("Token info from Dexscreener=>", tgFromDs);
-          try {
-            const tgUrlFromCMC = await fetchFromCMC(
-              poolAddress,
-              chain,
-              baseToken
-            );
-            let telegram = tgUrlFromCMC.telegram;
-            if (Array.isArray(telegram) && telegram.length > 0) {
-              telegram = telegram.join(",");
-            }
-            socialInfo.telegram = telegram;
-            let discord = tgUrlFromCMC.discord;
-            if (Array.isArray(discord) && discord.length > 0) {
-              discord = discord.join(",");
-            }
-            socialInfo.discord = discord;
 
-            console.log("tgUrlFromCMC==>", tgUrlFromCMC);
-            await sleep(1100);
-          } catch (error) {
-            console.log("error in cmc finding:", error);
-          }
-        }
+        const tokenInfo = await getDSinfo(baseToken);
+        const tgFromDs =
+          tokenInfo.length > 0 ? (tgFromDs = tokenInfo.join(", ")) : "";
+        console.log("Token info from Dexscreener=>", tgFromDs);
+
+        const tgUrlFromCMC = await fetchFromCMC(poolAddress, chain);
+        console.log("tgUrlFromCMC==>", tgUrlFromCMC);
 
         if (
-          (socialInfo.telegram != "N/A" ||
-            socialInfo.email != "N/A" ||
-            socialInfo.discord != "N/A") &&
-          socialInfo.name != ""
+          socialInfo.telegram != "N/A" ||
+          socialInfo.email != "N/A" ||
+          tgFromDs != ""
         ) {
           poolData.push({
-            ChainName: chain.toUpperCase(),
-            Version: version,
-            TokenName: socialInfo.name,
+            ChainName: chain,
+            version: versonName,
             PoolAddress: poolAddress,
-            TokenAddress: baseToken,
-            Liquidity: liq,
+            Liquidity: liquidity,
             TgInfo: socialInfo.telegram,
             Email: socialInfo.email,
-            Discord: socialInfo.discord,
-            PoolDates: creationTime,
             Notes: "",
-            // TgfromDS: tgFromDs,
-            // TgfromCMC: tgUrlFromCMC,
+            CA: baseToken,
+            TgfromDS: tgFromDs,
+            TgfromCMC: tgUrlFromCMC,
           });
         }
       }
@@ -416,17 +373,7 @@ const getLiquidity = async (chain, poolAddress) => {
   const url = `${ADDRESS}/pool/${chain}/${poolAddress}/liquidity`;
   const response = await makeRequest(url);
   // console.log("liquidity response ==>", response);
-  const liquidity = response?.liquidity ?? 0;
-  const reserves = response?.reserves ?? { mainToken: 0, sideToken: 0 };
-
-  return { reserves, liquidity };
-};
-
-const getTokenPrice = async (chain, tokenaddress) => {
-  const url = `${ADDRESS}/token/${chain}/${tokenaddress}/price`;
-  const response = await makeRequest(url);
-  console.log("liquidity response ==>", response);
-  return response?.price ? response.price : 0;
+  if (response) return response.liquidity;
 };
 
 const getSocialInfo = async (chain, tokenAddress) => {
@@ -434,73 +381,71 @@ const getSocialInfo = async (chain, tokenAddress) => {
 
   try {
     const data = await makeRequest(url);
-    // console.log(data);
 
     if (data && data.socialInfo) {
       // console.log(data.socialInfo);
-      const name = data.name || "";
       const telegramUrl = data.socialInfo.telegram || "N/A";
       const email = data.socialInfo.email || "N/A";
-      const discord = data.socialInfo.discord || "N/A";
-      // console.log("Telegram info retrieved:", telegramUrl, email);
-      return {
-        name: name,
-        telegram: telegramUrl,
-        email: email,
-        discord: discord,
-      };
+      console.log("Telegram info retrieved:", telegramUrl, email);
+      return { telegram: telegramUrl, email: email };
     } else {
       console.warn("No social info found in the response:", data);
-      return { name: "", telegram: "N/A", email: "N/A", discord: "N/A" };
+      return { telegram: "N/A", email: "N/A" };
     }
   } catch (error) {
     console.error(
       `Error fetching social info for token ${tokenAddress} on chain ${chain}:`,
       error
     );
-    return { name: "", telegram: "N/A", email: "N/A", discord: "N/A" };
+    return { telegram: "N/A", email: "N/A" };
   }
 };
 
-const getDSinfo = async (chain, pool, tokenAddress) => {
-  console.log("Fetching data from Dexscreener...", chain, pool, tokenAddress);
+const getDSinfo = async (tokenAddress) => {
+  console.log("Fetching data from Dexscreener...");
 
-  const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
+  // Validate tokenAddress input
+  if (typeof tokenAddress !== "string" || tokenAddress.trim() === "") {
+    console.log("Invalid token address provided.");
+    return [];
+  }
+
+  const url = `https://api.dexscreener.com/latest/dex/pairs/{chainId}/{pairId}`;
 
   try {
     const response = await fetch(url, {
       method: "GET",
-      headers: {},
+      headers: { "Content-Type": "application/json" },
     });
 
     const data = await response.json();
-    console.log("dexscreener=>", data);
+
     // Check if data and pairs exist
-    // if (!data || !data.pairs || data.pairs.length === 0) {
-    //   console.log("No pairs found in the response.");
-    //   return [];
-    // }
+    if (!data || !data.pairs || data.pairs.length === 0) {
+      console.log("No pairs found in the response.");
+      return [];
+    }
 
-    // const tgUrls = [];
+    const tgUrls = [];
 
-    // // Process the pairs for Telegram URLs
-    // for (const pair of data.pairs) {
-    //   const socials = pair.info?.social || [];
+    // Process the pairs for Telegram URLs
+    for (const pair of data.pairs) {
+      const socials = pair.info?.social || [];
 
-    //   // Find any social with platform 'telegram'
-    //   for (const social of socials) {
-    //     if (social.platform === "telegram" && social.handle) {
-    //       tgUrls.push(social.handle);
-    //       console.log(`Found Telegram URL: ${social.handle}`);
-    //     }
-    //   }
-    // }
+      // Find any social with platform 'telegram'
+      for (const social of socials) {
+        if (social.platform === "telegram" && social.handle) {
+          tgUrls.push(social.handle);
+          console.log(`Found Telegram URL: ${social.handle}`);
+        }
+      }
+    }
 
-    // if (tgUrls.length === 0) {
-    //   console.log("No Telegram social info found.");
-    // }
+    if (tgUrls.length === 0) {
+      console.log("No Telegram social info found.");
+    }
 
-    // return tgUrls;
+    return tgUrls;
   } catch (error) {
     console.error("An error occurred while fetching DS info:", error.message);
     return []; // Return an empty array on error
