@@ -103,24 +103,21 @@ bot.action(/^version:(v2|v3)$/, async (ctx) => {
 
 // Handle date input and start the token pool query
 bot.on(message("text"), async (ctx) => {
-  if (chain != "" && version != "") {
-    const date = ctx.message.text
-      .trim()
-      .split(",")
-      .reduce((obj, param) => {
-        const [key, value] = param.trim().split("=");
-        obj[key] = value;
-        return obj;
-      }, {});
+  const date = ctx.message.text
+    .trim()
+    .split(",")
+    .reduce((obj, param) => {
+      const [key, value] = param.trim().split("=");
+      obj[key] = value;
+      return obj;
+    }, {});
 
-    if (date.startDate && date.endDate) {
-      await getPools(date.startDate, date.endDate, chain, version, ctx);
-      chain = "";
-    } else {
-      await ctx.reply(
-        "Please ensure your dates are in the correct format: `startDate=YYYY-MM-DD, endDate=YYYY-MM-DD`."
-      );
-    }
+  if (date.startDate && date.endDate) {
+    await getPools(date.startDate, date.endDate, chain, version, ctx);
+  } else {
+    await ctx.reply(
+      "Please ensure your dates are in the correct format: `startDate=YYYY-MM-DD, endDate=YYYY-MM-DD`."
+    );
   }
 });
 
