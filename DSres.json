@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "pairs": [
+    {
+      "chainId": "bsc",
+      "dexId": "uniswap",
+      "url": "https://dexscreener.com/bsc/0x92b32eac70eaae47fc9be6edcabe8803bafd376a",
+      "pairAddress": "0x92B32eac70eaae47fc9bE6edCABe8803Bafd376A",
+      "baseToken": {
+        "address": "0x51464512F70d8De7893fB61BBb5f2Bc06b5E4741",
+        "name": "Tethar USDt",
+        "symbol": "USDt"
+      },
+      "quoteToken": {
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "name": "Tether USD",
+        "symbol": "USDT"
+      },
+      "priceNative": "2.3135",
+      "priceUsd": "2.31",
+      "txns": {
+        "m5": { "buys": 0, "sells": 0 },
+        "h1": { "buys": 0, "sells": 0 },
+        "h6": { "buys": 0, "sells": 0 },
+        "h24": { "buys": 0, "sells": 1 }
+      },
+      "volume": { "h24": 0.06, "h6": 0, "h1": 0, "m5": 0 },
+      "priceChange": {},
+      "liquidity": { "usd": 60.32, "base": 13.02936, "quote": 30.1788 },
+      "fdv": 462718424,
+      "marketCap": 462718424,
+      "pairCreatedAt": 1714909598000
+    }
+  ],
+  "pair": {
+    "chainId": "bsc",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/bsc/0x92b32eac70eaae47fc9be6edcabe8803bafd376a",
+    "pairAddress": "0x92B32eac70eaae47fc9bE6edCABe8803Bafd376A",
+    "baseToken": {
+      "address": "0x51464512F70d8De7893fB61BBb5f2Bc06b5E4741",
+      "name": "Tethar USDt",
+      "symbol": "USDt"
+    },
+    "quoteToken": {
+      "address": "0x55d398326f99059fF775485246999027B3197955",
+      "name": "Tether USD",
+      "symbol": "USDT"
+    },
+    "priceNative": "2.3135",
+    "priceUsd": "2.31",
+    "txns": {
+      "m5": { "buys": 0, "sells": 0 },
+      "h1": { "buys": 0, "sells": 0 },
+      "h6": { "buys": 0, "sells": 0 },
+      "h24": { "buys": 0, "sells": 1 }
+    },
+    "volume": { "h24": 0.06, "h6": 0, "h1": 0, "m5": 0 },
+    "priceChange": {},
+    "liquidity": { "usd": 60.32, "base": 13.02936, "quote": 30.1788 },
+    "fdv": 462718424,
+    "marketCap": 462718424,
+    "pairCreatedAt": 1714909598000
+  }
+}
