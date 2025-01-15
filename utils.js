@@ -2,9 +2,9 @@ import fetch from "node-fetch";
 import { config } from "dotenv";
 import fs from "fs";
 import fastcsv from "fast-csv";
-import { promisify } from "util";
+// import { promisify } from "util";
 import DbService from "./db/index.js"; // Ensure DbService is imported correctly
-import { reverse } from "dns";
+// import { reverse } from "dns";
 
 config();
 const ADDRESS = process.env.DEXTOOLS_URL;
@@ -14,7 +14,7 @@ const CMC_KEY = process.env.CMC_API_KEY;
 const liqBorder = process.env.LIQUIDITY;
 
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms * 2));
 }
 
 // Convert JSON data to CSV and send it as a Telegram document
@@ -140,7 +140,7 @@ const fetchFromCMC = async (tokenAddress) => {
       headers: { "X-CMC_PRO_API_KEY": CMC_KEY },
     });
     const data = await response.json();
-    // console.log("CMC-->", JSON.stringify(data));
+    // console.log("CMC-->",data);
     if (data.status.error_code === 0) {
       const key = Object.keys(data.data)[0];
       return {
@@ -183,8 +183,8 @@ const savePoolDataToDb = async (validTokens) => {
 };
 
 const makeRequest = async (url) => {
-  console.log("make request url::", url);
-  const retries = 5;
+  // console.log("make request url::", url);
+  const retries = 4;
   try {
     for (let attempt = 1; attempt <= retries; attempt++) {
       const response = await fetch(url, {
@@ -200,7 +200,7 @@ const makeRequest = async (url) => {
         return data.data;
       } else {
         console.log("request data is failed..");
-        await sleep(700);
+        await sleep(1000);
       }
     }
     // if (data) return data.data;
@@ -226,19 +226,21 @@ const fetchPoolsBetweenDates = async (chain, startDate, endDate, ctx) => {
     try {
       const endpointUrl = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${from}&to=${noon.toISOString()}&pageSize=50`;
       const firstResults = await fetchAllResults(endpointUrl);
+      await sleep(2000);
       totalResults.push(...firstResults); // Combine first results from all pages
       const endpointUrl2 = `${ADDRESS}/pool/${chain}?sort=creationTime&order=asc&from=${noon.toISOString()}&to=${to.toISOString()}&pageSize=50`;
       // console.log("new url=>", endpointUrl);
       const results = await fetchAllResults(endpointUrl2);
       totalResults.push(...results); // Combine second results from all pages
       currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to the next day
+      await sleep(1000);
     } catch (error) {
       console.error(
         `Error fetching data from ${from} to ${to.toISOString()}:`,
         error.message
       );
     }
-    await sleep(1000);
+    await sleep(3000);
   }
   ctx.reply(`0/${totalResults.length}`);
   return totalResults; // Return combined results
@@ -249,7 +251,7 @@ const fetchAllResults = async (url) => {
   let results = [];
   let page = 0;
   let totalPages;
-  const retries = 5;
+  const retries = 4;
 
   do {
     try {
@@ -271,12 +273,12 @@ const fetchAllResults = async (url) => {
 
           const { totalPages: tp, results: pageResults } = data.data;
           totalPages = tp;
-          // console.log(tp);
+          console.log("total number of pages==>", tp);
           results.push(...pageResults);
           break;
         } else {
           console.error(`Received unexpected status code ${data.statusCode}`);
-          await sleep(700);
+          await sleep(3000);
         }
       }
     } catch (error) {
@@ -284,7 +286,7 @@ const fetchAllResults = async (url) => {
     }
 
     page++;
-    await sleep(1000);
+    await sleep(3000);
   } while (page <= totalPages);
 
   return results;
@@ -324,6 +326,7 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
     const exchangeName = pool.exchange?.name;
     const versionName = version === "v2" ? "Uniswap V2" : "Uniswap V3";
     if (exchangeName === versionName) {
+      await sleep(500);
       const poolAddress = pool.address;
       const liqAndReserves = await getLiquidity(chain, poolAddress);
       const liquidity = liqAndReserves.liquidity;
@@ -344,7 +347,7 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
         const baseToken = stableCoins.includes(mainTokenAddress)
           ? sideTokenAddress
           : mainTokenAddress;
-        await sleep(500);
+        await sleep(3000);
         let socialInfo = await getSocialInfo(chain, baseToken);
         console.log("tg info ==>", socialInfo);
         if (
@@ -375,7 +378,7 @@ const extractTokenAddresses = async (allPools, version, chain, ctx) => {
             socialInfo.discord = discord;
 
             console.log("tgUrlFromCMC==>", tgUrlFromCMC);
-            await sleep(700);
+            await sleep(1100);
           } catch (error) {
             console.log("error in cmc finding:", error);
           }
