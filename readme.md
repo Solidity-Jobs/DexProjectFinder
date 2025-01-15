@@ -1,4 +1,3 @@
-
 # DexProjectFinder
 
 DexProjectFinder is a Node.js-based tool for analyzing token data using Bitquery and managing it through MongoDB. It includes integration with Telegram to notify users about updates.
@@ -27,14 +26,11 @@ Before running the project, ensure the following software and accounts are ready
 
 ## Project Setup
 
-
 ### 2. Install Dependencies
 
 Run the following command to install all required packages:
 
 `npm install `
-
-
 
 ### 3. Configure Environment Variables
 
@@ -50,7 +46,6 @@ DB_NAME=dex_project_finder         # Replace with your database name
 
 ```
 
-
 ## How to Run
 
 ### 1. Start MongoDB
@@ -59,7 +54,6 @@ Ensure MongoDB is running. If it's installed locally, you can start it with:
 
 `mongod
 `
-
 
 For MongoDB Atlas, ensure the connection URI in `DB_HOST` is correct.
 
@@ -70,21 +64,19 @@ Start the application with:
 `npm start
 `
 
-
 ### Verify Output
 
-* The application should display logs like `Running TokenFinder` and database connection status.
-* Telegram notifications will be sent if configured correctly.
-
+- The application should display logs like `Running TokenFinder` and database connection status.
+- Telegram notifications will be sent if configured correctly.
 
 ## Common Issues and Fixes
 
 1. **MongoDB Connection Error:**
-   * Ensure MongoDB is running and `DB_HOST` is set correctly in `.env`.
-   * If using MongoDB Atlas, whitelist your IP address in the cluster settings.
-2. **Bitquery API Error:**
-   * Verify that your `BITQUERY_API_KEY` is active and correct.
+   - Ensure MongoDB is running and `DB_HOST` is set correctly in `.env`.
+   - If using MongoDB Atlas, whitelist your IP address in the cluster settings.
+2. **dextools API Error:**
+   - Verify that your `DEXTOOLS_API_KEY` is active and correct.
 3. **Telegram Bot Error:**
-   * Ensure your `TELEGRAM_BOT_TOKEN` is valid and the bot is added to your Telegram chat.
+   - Ensure your `TELEGRAM_BOT_TOKEN` is valid and the bot is added to your Telegram chat.
 4. **Dependencies Missing:**
-   * Run `npm install` to ensure all dependencies are installed.
+   - Run `npm install` to ensure all dependencies are installed.
