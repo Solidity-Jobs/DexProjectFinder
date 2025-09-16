@@ -203,7 +203,7 @@ class DbService {
         .find(filters)
         .sort(sort || {})
         .project(project || {})
-        //.limit(100)
+        .limit(100)
         .toArray()
         .then((results) => {
           return results;
@@ -223,7 +223,7 @@ class DbService {
         .collection(collection)
         .find(filters)
         .project(project)
-        //.limit(100)
+        .limit(100)
         .toArray()
         .then((results) => {
           return results;
